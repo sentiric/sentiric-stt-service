@@ -12,6 +12,7 @@
 *   Python
 *   TensorFlow, PyTorch, or other ML frameworks
 *   Flask/FastAPI (for REST API)
+* we can use Whisper.cpp (4-bit quantized) + ONNX Runtime
 
 **API Interactions (As an API Provider):**
 *   Exposes a RESTful API for `sentiric-agent-service` and `sentiric-api-gateway-service` to request speech-to-text conversions.

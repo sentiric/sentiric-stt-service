@@ -1,0 +1,21 @@
+
+services:
+  stt-service:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-stt-service:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sentiric_stt_service
+    env_file:
+      - ./.env
+    # Yerel test ve debug için portu açabilirsiniz
+    # ports:
+    #   - "5001:5001"
+    networks:
+      - sentiric-net
+    restart: unless-stopped
+
+networks:
+  sentiric-net:
+    name: ${NETWORK_NAME:-sentiric-net}
+    driver: bridge
