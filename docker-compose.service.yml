@@ -13,7 +13,7 @@ services:
           SERVICE_NAME: sentiric-stt-service
 
       env_file: 
-        - ./.env
+        - ./.env.docker
 
       # volumes:
       #   - ../sentiric-infrastructure/tls/certs:/etc/sentiric/tls:ro
