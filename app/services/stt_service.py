@@ -1,38 +1,48 @@
-from transformers import pipeline
-from functools import lru_cache
+# app/services/stt_service.py
+
 from app.core.config import settings
 from app.core.logging import logger
-import soundfile as sf
-import io
+from .adapters.base import BaseSTTAdapter
 
-@lru_cache(maxsize=1)
-def load_stt_model():
+# Adaptörleri burada kaydedeceğiz
+_ADAPTERS = {}
+_loaded_adapter_instance: BaseSTTAdapter = None
+
+def register_adapter(name: str, adapter_class):
+    _ADAPTERS[name] = adapter_class
+    logger.debug(f"STT adaptörü kaydedildi: {name}")
+
+def load_adapter() -> BaseSTTAdapter:
     """
-    Whisper modelini sadece bir kez yükler ve cache'ler.
-    Bu fonksiyon uygulama başlangıcında çağrılır.
+    Konfigürasyona göre doğru STT adaptörünü yükler ve bir örneğini döndürür.
+    Bu fonksiyon uygulama başlangıcında sadece bir kez çağrılır.
     """
-    logger.info(f"STT modeli yükleniyor: {settings.STT_MODEL_NAME}", device=settings.STT_MODEL_DEVICE)
-    
-    # DÜZELTME: 'accelerate' kütüphanesi cihazı otomatik olarak
-    # yöneteceğinden, 'device' argümanını kaldırıyoruz.
-    pipe = pipeline(
-        "automatic-speech-recognition",
-        model=settings.STT_MODEL_NAME,
-        model_kwargs={"load_in_8bit": True if settings.STT_MODEL_DEVICE == "cpu" else False}
-    )
-    logger.info("STT modeli başarıyla yüklendi.")
-    return pipe
+    global _loaded_adapter_instance
+    if _loaded_adapter_instance is None:
+        adapter_name = settings.STT_ADAPTER
+        logger.info(f"Yüklenecek STT adaptörü: {adapter_name}")
+        
+        adapter_class = _ADAPTERS.get(adapter_name)
+        if not adapter_class:
+            logger.error(f"Adaptör bulunamadı: {adapter_name}. Kayıtlı adaptörler: {list(_ADAPTERS.keys())}")
+            raise ValueError(f"Geçersiz STT adaptörü: {adapter_name}")
+            
+        _loaded_adapter_instance = adapter_class()
+        
+    return _loaded_adapter_instance
 
 def transcribe_audio(audio_bytes: bytes) -> str:
     """
-    Verilen ses byte'larını metne çevirir.
+    Yüklenmiş olan mevcut adaptörü kullanarak transkripsiyon yapar.
     """
-    stt_pipeline = load_stt_model()
-    
-    audio_data, samplerate = sf.read(io.BytesIO(audio_bytes))
-    
-    # Pipeline'a gönderirken de 'device' belirtmiyoruz.
-    # Kütüphane, yükleme sırasında seçilen cihazı kullanacaktır.
-    result = stt_pipeline({"sampling_rate": samplerate, "raw": audio_data})
-    
-    return result["text"]
+    adapter = load_adapter()
+    return adapter.transcribe(audio_bytes)
+
+# --- UYGULAMA BAŞLANGICINDA ADAPTÖRLERİ KAYDET ---
+# Bu, "plug-in" sistemimizin temelidir.
+from .adapters.faster_whisper_adapter import FasterWhisperAdapter
+register_adapter("faster_whisper", FasterWhisperAdapter)
+
+# Gelecekte yeni bir adaptör eklediğimizde, sadece buraya bir satır ekleyeceğiz:
+# from .adapters.whisper_cpp_adapter import WhisperCppAdapter
+# register_adapter("whisper_cpp", WhisperCppAdapter)

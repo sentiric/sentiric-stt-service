@@ -1,0 +1,33 @@
+# Docker build context'ine dahil edilmeyecek dosyalar ve klasörler
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Git
+.git/
+
+# IDE/Editor
+.vscode/
+.idea/
+
+# OS-specific
+.DS_Store
+
+# Cache ve Loglar
+.cache/
+logs/
+*.log
+
+# Test verileri (eğer repo'da kalıcı değilse)
+docs
+
+# Docker
+Dockerfile
+docker-compose.service.yml

@@ -3,41 +3,42 @@ FROM python:3.11-slim-bullseye AS builder
 
 WORKDIR /app
 
-ENV HF_HOME=/app/cache/huggingface \
-    PIP_BREAK_SYSTEM_PACKAGES=1
+# Ortam değişkenleri
+ENV PIP_BREAK_SYSTEM_PACKAGES=1 \
+    PIP_NO_CACHE_DIR=1
 
-# Sistem derleme araçları ve ses işleme için ffmpeg
+# Gerekli sistem bağımlılıkları
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential ffmpeg && rm -rf /var/lib/apt/lists/*
 
-# Sadece CPU için torch kurarak imaj boyutunu küçült
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+# --- Standart ve Doğru Kurulum Yöntemi ---
+# Önce projenin kurulum tanımını kopyala
+COPY pyproject.toml .
 
-# Bağımlılıkları kur
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Ardından projenin kendisini (uygulama kodu ve README dahil) kopyala
+# .dockerignore sayesinde .venv gibi gereksiz dosyalar gelmeyecek
+COPY app ./app
+COPY README.md .
 
-# Modeli build sırasında indirerek çalışma zamanı gecikmesini önle
-RUN python -c "from transformers import pipeline; pipeline('automatic-speech-recognition', model='openai/whisper-base')"
-
+# Şimdi hem bağımlılıkları hem de projeyi tek adımda kur
+# Bu, setuptools'un ihtiyaç duyduğu tüm dosyaların mevcut olmasını sağlar
+RUN pip install .
 
 # --- STAGE 2: Production ---
 FROM python:3.11-slim-bullseye
 
 WORKDIR /app
 
-ENV HF_HOME=/app/cache/huggingface \
-    NO_COLOR=1 \
-    PIP_BREAK_SYSTEM_PACKAGES=1
+# Ortam değişkenleri
+ENV PIP_BREAK_SYSTEM_PACKAGES=1 \
+    HF_HUB_DISABLE_SYMLINKS_WARNING=1 \
+    NO_COLOR=1
 
-# Sistem çalışma zamanı bağımlılıklarını (ffmpeg) kur
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+# Sadece çalışma zamanı için gerekli sistem bağımlılıklarını kur
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg curl && rm -rf /var/lib/apt/lists/*
 
-# Builder'dan sadece kurulu Python paketlerini kopyala
+# Builder'dan sadece kurulu Python kütüphanelerini kopyala
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
-
-# Builder'dan indirilmiş ve cache'lenmiş modeli kopyala
-COPY --from=builder ${HF_HOME} ${HF_HOME}
 
 # Uygulama kodunu kopyala
 COPY ./app ./app

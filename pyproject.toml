@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentiric-stt-service"
+version = "0.1.0"
+description = "Sentiric STT Service for speech-to-text transcription."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart",
+    "pydantic",
+    "pydantic-settings",
+    "python-dotenv",
+    "typing-extensions",
+    "structlog",
+    "prometheus-fastapi-instrumentator",
+    "faster-whisper",
+    "ctranslate2>=3.20.0,<4.0.0",
+    "soundfile",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "httpx",
+    "numpy",
+    # anyio yerine pytest-asyncio'yu ekliyoruz.
+    "pytest-asyncio",
+]
+
+[tool.setuptools]
+packages = ["app"]
+
+# Pytest'e asyncio modunu kullanmasını SÖYLÜYORUZ.
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

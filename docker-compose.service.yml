@@ -1,22 +1,30 @@
 networks:
   sentiric-net:
+    # YENİ: Dışarıdan gelen bir ağı kullanacağımızı belirtiyoruz
+    # external: true
     name: ${NETWORK_NAME:-sentiric-net}
-    driver: bridge
+
+# YENİ: Modelleri saklamak için kalıcı bir volume tanımlıyoruz
+volumes:
+  stt-model-cache:
 
 services:
   stt-service:       
-
       build:
         context: .
         dockerfile: Dockerfile
-        args:
-          SERVICE_NAME: sentiric-stt-service
+      
+      # YENİ: İmaj ismini standartlaştırıyoruz
+      image: ghcr.io/sentiric/sentiric-stt-service:latest
 
       env_file: 
         - ./.env.docker
 
-      # volumes:
-      #   - ../sentiric-infrastructure/tls/certs:/etc/sentiric/tls:ro
+      volumes:
+        # YENİ: Model cache'ini host makineye bağlıyoruz
+        - stt-model-cache:/root/.cache
+        # mTLS aktif edildiğinde bu satırları açacağız
+        # - ../sentiric-infrastructure/tls/certs:/etc/sentiric/tls:ro
 
       ports:
         - "${STT_SERVICE_PORT}:${STT_SERVICE_PORT}"
@@ -27,5 +35,13 @@ services:
       profiles:
         - default
         - ai
+
+      # YENİ: Healthcheck'i container içindeki curl ile daha güvenilir hale getiriyoruz
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+        interval: 30s
+        timeout: 10s
+        retries: 3
+        start_period: 60s # Modelin yüklenmesi için ek süre tanıyoruz
 
       restart: always
