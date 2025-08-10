@@ -13,9 +13,6 @@ services:
       build:
         context: .
         dockerfile: Dockerfile
-      
-      # YENİ: İmaj ismini standartlaştırıyoruz
-      image: ghcr.io/sentiric/sentiric-stt-service:latest
 
       env_file: 
         - ./.env.docker
@@ -24,7 +21,7 @@ services:
         # YENİ: Model cache'ini host makineye bağlıyoruz
         - stt-model-cache:/root/.cache
         # mTLS aktif edildiğinde bu satırları açacağız
-        # - ../sentiric-infrastructure/tls/certs:/etc/sentiric/tls:ro
+        # - ../sentiric-config/tls/certs:/etc/sentiric/tls:ro
 
       ports:
         - "${STT_SERVICE_PORT}:${STT_SERVICE_PORT}"
