@@ -1,37 +1,36 @@
-### **FAZ 3: Gerçek Testler, Performans Analizi ve Demo**
+# 🎤 Sentiric STT Service - API Kullanım ve Demo Rehberi
 
-Otomatik testler "kodun doğru çalıştığını" söyler. Gerçek testler "ürünün doğru çalıştığını" gösterir.
+Bu belge, çalışan `sentiric-stt-service`'in performansını ve doğruluğunu test etmek için pratik örnekler sunar.
 
-**Test Ortamı:**
-*   Servis, `docker compose` ile çalışır durumda.
-*   Test için `curl` veya `Postman` gibi bir araç kullanacağız.
-*   Farklı türde ses dosyaları hazırlayacağız:
-    1.  `docs/audio/speakers/tr/default_male.wav`: Türkçe, stüdyo kalitesinde, net bir konuşma.
-    2.  `docs/audio/speakers/en/default_male.wav`: İngilizce, arkada gürültü olan bir konuşma.
-    3.  `docs/audio/speakers/tr/default_male.wav`: Türkçe, 1-2 dakikalık uzun bir konuşma.
+## Önkoşullar
 
-**Test 1: Doğruluk (Accuracy) Testi**
-*   **Amaç:** `docs/audio/speakers/tr/default_male.wav` dosyasını servise gönderip dönen metnin orijinal metne ne kadar yakın olduğunu ölçmek.
+*   Servis, `docker compose` ile veya yerel `uvicorn` komutuyla çalışır durumda olmalıdır.
+*   Test için `curl` gibi bir aracınız ve birkaç örnek `.wav` dosyanız olmalıdır.
+
+---
+
+### **Test 1: Doğruluk (Accuracy) Testi**
+
+*   **Amaç:** Net bir ses dosyasının ne kadar doğru bir şekilde metne çevrildiğini görmek.
+*   **Hazırlık:** İçinde "Merhaba dünya, bu bir test mesajıdır." gibi net bir cümlenin olduğu `test_tr.wav` adında bir ses dosyası hazırlayın.
 *   **Komut:**
     ```bash
-    curl -X POST -F "audio_file=@docs/audio/speakers/tr/test.wav;type=audio/wav" http://localhost:5001/api/v1/transcribe
+    curl -X POST -F "audio_file=@path/to/test_tr.wav;type=audio/wav" http://localhost:5001/api/v1/transcribe
     ```
-*   **Başarı Kriteri:** Dönen metnin Kelime Hata Oranı (Word Error Rate - WER) %10'un altında olmalı.
+*   **Beklenen Sonuç:**
+    ```json
+    {
+      "text": "Merhaba dünya, bu bir test mesajıdır."
+    }
+    ```
+    Dönen metnin orijinal metne ne kadar yakın olduğunu kontrol edin.
 
-**Test 2: Gürültüye Dayanıklılık Testi**
-*   **Amaç:** `docs/audio/speakers/en/default_male.wav` dosyasını göndererek modelin zorlu koşullardaki performansını görmek.
+### **Test 2: Performans (Hız) Testi**
+
+*   **Amaç:** 60 saniyelik bir ses dosyasının ne kadar sürede işlendiğini ölçmek (Gerçek Zaman Faktörü - RTF).
+*   **Hazırlık:** 60 saniye uzunluğunda bir konuşma içeren `long_test.wav` dosyası hazırlayın.
 *   **Komut:**
     ```bash
-    curl -X POST -F "audio_file=@docs/audio/speakers/en/test.wav;type=audio/wav" http://localhost:5001/api/v1/transcribe
+    time curl -X POST -F "audio_file=@path/to/long_test.wav;type=audio/wav" http://localhost:5001/api/v1/transcribe
     ```
-*   **Başarı Kriteri:** Anlamın büyük ölçüde korunması.
-
-**Test 3: Performans (Hız) Testi**
-*   **Amaç:** `docs/audio/speakers/tr/default_male.wav` (örneğin 60 saniyelik bir dosya) gönderip, yanıtın ne kadar sürede geldiğini ölçmek. Buna **Gerçek Zaman Faktörü (Real-Time Factor - RTF)** denir.
-*   **Komut:**
-    ```bash
-    time curl -X POST -F "audio_file=@docs/audio/speakers/tr/default_male.wav;type=audio/wav" http://localhost:5001/api/v1/transcribe
-    ```
-*   **Başarı Kriteri:** İşlem süresi, ses dosyasının süresinden önemli ölçüde daha kısa olmalı (RTF < 1.0). Örneğin, 60 saniyelik bir ses 10-15 saniyede işleniyorsa, bu harika bir sonuçtur.
-
-Bu gerçek testler, servisin sadece kağıt üzerinde değil, pratik uygulamada da ne kadar güçlü ve güvenilir olduğunu bize gösterecektir.
+*   **Beklenen Sonuç:** `curl` komutunun tamamlanma süresi (örn: `real 0m12.345s`), ses dosyasının süresinden (60s) çok daha kısa olmalıdır. Bu, RTF'nin 1'den küçük olduğunu ve servisin gerçek zamanlı senaryolar için uygun olduğunu gösterir.

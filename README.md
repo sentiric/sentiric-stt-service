@@ -3,108 +3,43 @@
 [![Status](https://img.shields.io/badge/status-active-success.svg)]()
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![Framework](https://img.shields.io/badge/framework-FastAPI-green.svg)](https://fastapi.tiangolo.com/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Sentiric STT Service**, Sentiric "İletişim İşletim Sistemi" ekosisteminin "kulakları" olarak görev yapan, yüksek performanslı ve modüler bir yapay zeka servisidir. Temel amacı, gelen ses akışlarını veya dosyalarını yüksek doğrulukla metne dönüştürmektir.
 
 Bu servis, "en küçük sistemde en yüksek performans" hedefiyle tasarlanmış olup, minimum kaynak tüketimiyle gerçek zamanlıya yakın (near real-time) transkripsiyon yeteneği sunar.
 
-## ✨ Temel Özellikler
+## 🎯 Temel Sorumluluklar
 
-*   **Yüksek Performans:** `faster-whisper` (CTranslate2) motoru sayesinde, standart `transformers` kütüphanesine göre CPU'da **4 kata kadar daha hızlı** çalışır ve **%50 daha az bellek** kullanır.
+*   **Yüksek Performanslı Transkripsiyon:** `faster-whisper` (CTranslate2) motoru sayesinde, standart `transformers` kütüphanesine göre CPU'da **4 kata kadar daha hızlı** çalışır ve **%50 daha az bellek** kullanır.
 *   **Otomatik Dil Tespiti:** Herhangi bir konfigürasyon olmadan birden fazla dili (Türkçe, İngilizce vb.) otomatik olarak algılar ve metne döker.
-*   **Kaynak Verimliliği:** `int8` kuantizasyon desteği ile optimize edilmiştir. Rölantide **~200MB RAM** kullanımıyla en mütevazı sunucularda bile çalışabilir.
 *   **"Tak-Çıkar" Mimarisi:** Temel felsefemize uygun olarak, farklı STT motorlarını (adaptörlerini) `.env` dosyası üzerinden kolayca değiştirebilecek esnek bir yapıya sahiptir.
-*   **Gözlemlenebilirlik:** Prometheus metrikleri ve ortama duyarlı (JSON/Console) yapılandırılmış loglama ile üretime hazırdır.
+*   **API Sunucusu:** `/api/v1/transcribe` endpoint'i üzerinden ses dosyalarını kabul eder ve transkripsiyon sonucunu JSON olarak döndürür.
 
-## 🚀 Hızlı Başlangıç (Docker ile)
+## 🛠️ Teknoloji Yığını
 
-Bu servisi çalıştırmanın en hızlı ve önerilen yolu Docker'dır.
+*   **Dil:** Python
+*   **Web Çerçevesi:** FastAPI
+*   **AI Motoru:** `faster-whisper` (CTranslate2)
+*   **Paketleme:** `pyproject.toml` (setuptools)
+*   **Gözlemlenebilirlik:** Prometheus metrikleri ve `structlog` ile yapılandırılmış loglama.
 
-1.  **Repo'yu Klonlayın:**
-    ```bash
-    git clone https://github.com/sentiric/sentiric-stt-service.git
-    cd sentiric-stt-service
-    ```
+## 🔌 API Etkileşimleri
 
-2.  **Ortam Dosyasını Oluşturun:**
-    ```bash
-    # .env.docker dosyasını projenin ana dizinine .env olarak kopyalayın
-    # Genellikle bu, sentiric-infrastructure reposundan yönetilir.
-    # Şimdilik, docker-compose.service.yml'nin .env.docker'ı okuduğunu varsayıyoruz.
-    ```
+*   **Gelen (Sunucu):**
+    *   `sentiric-agent-service` (REST/JSON): `/transcribe` endpoint'ine ses dosyaları gönderir.
 
-3.  **Servisi Başlatın:**
-    ```bash
-    docker compose -f docker-compose.service.yml up --build -d
-    ```
-    İlk başlatmada, model indirileceği için bu işlem birkaç dakika sürebilir. Sonraki başlatmalar anında olacaktır.
+## 🚀 Yerel Geliştirme ve Test
 
-4.  **Sağlık Durumunu Kontrol Edin:**
-    ```bash
-    curl http://localhost:5001/health
-    ```
-    Başarılı bir yanıt şöyle görünmelidir:
-    ```json
-    {"status":"ok","adapter_loaded":true,"adapter_type":"faster_whisper"}
-    ```
+1.  **Sanal Ortam Oluşturun:** `python -m venv .venv && source .venv/bin/activate`
+2.  **Bağımlılıkları Kurun:** `pip install -e ".[dev]"`
+3.  **Servisi Başlatın:** `uvicorn app.main:app --reload --port 5001`
+4.  **Testleri Çalıştırın:** `pytest -v`
 
-## 🎤 API Kullanımı
+## 🤝 Katkıda Bulunma
 
-Servis, ses dosyalarını metne dönüştürmek için tek bir ana endpoint sunar.
+Katkılarınızı bekliyoruz! Lütfen projenin ana [Sentiric Governance](https://github.com/sentiric/sentiric-governance) reposundaki kodlama standartlarına ve katkıda bulunma rehberine göz atın.
 
-**Endpoint:** `POST /api/v1/transcribe`
-**Gövde:** `multipart/form-data`
-**Parametre:** `audio_file` (Ses dosyası)
-
-### `curl` ile Örnek Kullanım
-
-```bash
-curl -X POST \
-  -F "audio_file=@path/to/your/audio.wav;type=audio/wav" \
-  http://localhost:5001/api/v1/transcribe
-```
-
-**Başarılı Yanıt (`200 OK`):**
-```json
-{
-  "text": "Bu, ses dosyasının içindeki metindir."
-}
-```
-
-**Hatalı Yanıt (`400 Bad Request`):**
-```json
-{
-  "detail": "Geçersiz dosya tipi. Lütfen bir ses dosyası (.wav, .mp3 vb.) yükleyin."
-}
-```
-
-## 🛠️ Mimari ve Tasarım Kararları
-
-*   **Teknoloji Yığını:** Python 3.11, FastAPI, Uvicorn, Faster-Whisper, CTranslate2.
-*   **Adaptör Deseni:** Servisin kalbi, `app/services/adapters` altında bulunan adaptörlerdir. Bu yapı, `faster-whisper`'ı gelecekte `whisper.cpp` veya bulut tabanlı bir API (örn: Google Speech-to-Text) ile kolayca değiştirmemize olanak tanır. Hangi adaptörün kullanılacağı `.env` dosyasındaki `STT_ADAPTER` değişkeni ile belirlenir.
-*   **Paketleme ve Bağımlılık Yönetimi:** Proje, modern Python standartlarına uygun olarak `pyproject.toml` ile yönetilmektedir. Bu, hem geliştirme hem de Docker build süreçlerinde tutarlılık sağlar.
-*   **Test Stratejisi:** Projenin kalitesi, `pytest` ile yazılmış ve `tests/` klasöründe bulunan birim ve entegrasyon testleri ile garanti altına alınmıştır.
-
-## 💻 Yerel Geliştirme Ortamı
-
-1.  Python 3.11+ kurulu olduğundan emin olun.
-2.  Bir sanal ortam (virtual environment) oluşturun:
-    ```bash
-    python -m venv .venv
-    source .venv/bin/activate
-    ```
-3.  Projeyi "düzenlenebilir modda" ve geliştirme bağımlılıklarıyla birlikte kurun:
-    ```bash
-    pip install -e ".[dev]"
-    ```
-4.  `.env` dosyanızı oluşturun ve gerekli değişkenleri ayarlayın.
-5.  Servisi başlatın:
-    ```bash
-    uvicorn app.main:app --reload
-    ```
-6.  Testleri çalıştırın:
-    ```bash
-    pytest -v
-    ```
 ---
+## 🏛️ Anayasal Konum
+
+Bu servis, [Sentiric Anayasası'nın (v11.0)](https://github.com/sentiric/sentiric-governance/blob/main/docs/blueprint/Architecture-Overview.md) **Zeka & Orkestrasyon Katmanı**'nda yer alan merkezi bir bileşendir.
