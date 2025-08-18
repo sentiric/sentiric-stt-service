@@ -1,15 +1,11 @@
-# app/services/adapters/faster_whisper_adapter.py
-
 from faster_whisper import WhisperModel
 from app.core.config import settings
 from app.core.logging import logger
 import io
 from .base import BaseSTTAdapter
+from typing import Optional
 
 class FasterWhisperAdapter(BaseSTTAdapter):
-    """
-    faster-whisper kütüphanesini kullanarak transkripsiyon yapan somut adaptör.
-    """
     _model: WhisperModel = None
     
     def __init__(self):
@@ -31,15 +27,22 @@ class FasterWhisperAdapter(BaseSTTAdapter):
                 logger.error("FasterWhisperAdapter modeli yüklenirken hata oluştu.", error=str(e))
                 raise e
 
-    def transcribe(self, audio_bytes: bytes) -> str:
+    # DÜZELTME: Fonksiyon artık opsiyonel bir 'language' parametresi alıyor.
+    def transcribe(self, audio_bytes: bytes, language: Optional[str] = None) -> str:
         audio_stream = io.BytesIO(audio_bytes)
         
-        segments, info = self._model.transcribe(audio_stream, beam_size=5)
+        # DÜZELTME: Dil parametresini transcribe fonksiyonuna iletiyoruz.
+        segments, info = self._model.transcribe(
+            audio_stream, 
+            beam_size=5, 
+            language=language # Eğer None ise, otomatik tespit çalışır.
+        )
         
         logger.info(
             "Transkripsiyon tamamlandı.",
-            language=info.language,
-            language_probability=info.language_probability
+            detected_language=info.language,
+            language_probability=info.language_probability,
+            requested_language=language
         )
 
         full_text = "".join(segment.text for segment in segments)
