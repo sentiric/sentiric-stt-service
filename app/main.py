@@ -26,6 +26,7 @@ Instrumentator().instrument(app).expose(app)
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 
 @app.get("/health", tags=["Health"])
+@app.head("/health")
 def health_check():
     try:
         # DÜZELTME: Doğru fonksiyonu çağırıyoruz
