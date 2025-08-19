@@ -12,15 +12,15 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         if FasterWhisperAdapter._model is None:
             logger.info(
                 "FasterWhisperAdapter modeli yükleniyor...",
-                model=settings.STT_MODEL_SIZE,
-                device=settings.STT_DEVICE,
-                compute_type=settings.STT_COMPUTE_TYPE
+                model=settings.STT_SERVICE_MODEL_SIZE,
+                device=settings.STT_SERVICE_DEVICE,
+                compute_type=settings.STT_SERVICE_COMPUTE_TYPE
             )
             try:
                 FasterWhisperAdapter._model = WhisperModel(
-                    settings.STT_MODEL_SIZE,
-                    device=settings.STT_DEVICE,
-                    compute_type=settings.STT_COMPUTE_TYPE
+                    settings.STT_SERVICE_MODEL_SIZE,
+                    device=settings.STT_SERVICE_DEVICE,
+                    compute_type=settings.STT_SERVICE_COMPUTE_TYPE
                 )
                 logger.info("FasterWhisperAdapter modeli başarıyla yüklendi.")
             except Exception as e:

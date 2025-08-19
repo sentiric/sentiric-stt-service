@@ -8,12 +8,12 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # --- ADAPTÖR SEÇİMİ ---
-    STT_ADAPTER: str = "faster_whisper" # Gelecekte 'whisper_cpp' olabilir
+    STT_SERVICE_ADAPTER: str = "faster_whisper" # Gelecekte 'whisper_cpp' olabilir
 
     # --- FASTER-WHISPER AYARLARI ---
-    STT_MODEL_SIZE: str = "base"
-    STT_DEVICE: str = "cpu"
-    STT_COMPUTE_TYPE: str = "int8"
+    STT_SERVICE_MODEL_SIZE: str = "base"
+    STT_SERVICE_DEVICE: str = "cpu"
+    STT_SERVICE_COMPUTE_TYPE: str = "int8"
 
     model_config = SettingsConfigDict(env_file=".env", extra='ignore')
 

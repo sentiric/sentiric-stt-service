@@ -35,7 +35,7 @@ def health_check():
             return {
                 "status": "ok", 
                 "adapter_loaded": True, 
-                "adapter_type": settings.STT_ADAPTER
+                "adapter_type": settings.STT_SERVICE_ADAPTER
             }
         else:
             return {"status": "error", "adapter_loaded": False, "detail": "Adapter is not loaded."}

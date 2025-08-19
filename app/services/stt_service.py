@@ -13,7 +13,7 @@ def register_adapter(name: str, adapter_class):
 def load_adapter() -> BaseSTTAdapter:
     global _loaded_adapter_instance
     if _loaded_adapter_instance is None:
-        adapter_name = settings.STT_ADAPTER
+        adapter_name = settings.STT_SERVICE_ADAPTER
         logger.info(f"Yüklenecek STT adaptörü: {adapter_name}")
         adapter_class = _ADAPTERS.get(adapter_name)
         if not adapter_class:
