@@ -1,33 +1,54 @@
-# Docker build context'ine dahil edilmeyecek dosyalar ve klasörler
-
-# Python
-.venv/
-venv/
+# __pycache__ klasörleri ve bytecode dosyaları
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.pytest_cache/
-.mypy_cache/
 
-# Git
-.git/
+# Sanal ortam klasörleri
+env/
+venv/
+ENV/
+.venv/
+.python-version
 
-# IDE/Editor
+# Paketleme ile ilgili geçici dosyalar
+*.egg-info/
+.eggs/
+*.egg
+
+# Git dosyaları
+.git
+.gitignore
+
+# IDE/editor dosyaları
 .vscode/
 .idea/
+*.swp
 
-# OS-specific
+# Sistem dosyaları
 .DS_Store
+Thumbs.db
 
-# Cache ve Loglar
-.cache/
-logs/
+# Log dosyaları
 *.log
 
-# Test verileri (eğer repo'da kalıcı değilse)
-docs
+# Ortam değişken dosyaları
+.env
+.env.*
 
-# Docker
-Dockerfile
-docker-compose.service.yml
+# Test çıktıları ve coverage
+htmlcov/
+.coverage
+.tox/
+.nox/
+pytest_cache/
+coverage.xml
+*.cover
+*.py,cover
+
+# Jupyter Notebook checkpoint dosyaları
+.ipynb_checkpoints/
+
+# Docker-compose vs.
+docker-compose.yml
+docker-compose.override.yml
