@@ -1,44 +1,25 @@
+# docker-compose.service.yml
+# Service Geliştirme ortamı
+
 networks:
-  sentiric-net:
-    # YENİ: Dışarıdan gelen bir ağı kullanacağımızı belirtiyoruz
-    # external: true
-    name: ${NETWORK_NAME:-sentiric-net}
+  sentiric-net: { name: "${NETWORK_NAME:-sentiric-net}", driver: bridge }
 
 # YENİ: Modelleri saklamak için kalıcı bir volume tanımlıyoruz
 volumes:
   stt-model-cache:
 
 services:
-  stt-service:       
-      build:
-        context: .
-        dockerfile: Dockerfile
-
-      env_file: 
-        - ./.env.docker
-
-      volumes:
-        # YENİ: Model cache'ini host makineye bağlıyoruz
-        - stt-model-cache:/root/.cache
-        # mTLS aktif edildiğinde bu satırları açacağız
-        # - ../sentiric-config/tls/certs:/etc/sentiric/tls:ro
-
-      ports:
-        - "${STT_SERVICE_PORT}:${STT_SERVICE_PORT}"
-
-      networks:
-        - sentiric-net
-      
-      profiles:
-        - default
-        - ai
-
-      # YENİ: Healthcheck'i container içindeki curl ile daha güvenilir hale getiriyoruz
-      healthcheck:
-        test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
-        interval: 30s
-        timeout: 10s
-        retries: 3
-        start_period: 60s # Modelin yüklenmesi için ek süre tanıyoruz
-
-      restart: always
+  # --- SES ORKESTRASYON KATMANI ---
+  stt-service:
+    build: { context: ../sentiric-stt-service }
+    env_file: ["${ENV_FILE_PATH}"]
+    volumes: [stt-model-cache:/root/.cache]
+    ports: ["${STT_SERVICE_PORT:-5001}:5001"]
+    networks: [sentiric-net]
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 3m
