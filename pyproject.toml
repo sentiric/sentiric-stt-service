@@ -16,7 +16,8 @@ dependencies = [
     "pydantic-settings",
     "python-dotenv",
     "typing-extensions",
-    "structlog",
+    "structlog", # Yapılandırılmış loglama için
+    "colorama",  # Geliştirme ortamında renkli loglar için
     "prometheus-fastapi-instrumentator",
     "faster-whisper",
     "ctranslate2>=3.20.0,<4.0.0",
@@ -29,13 +30,11 @@ dev = [
     "pytest-cov",
     "httpx",
     "numpy",
-    # anyio yerine pytest-asyncio'yu ekliyoruz.
     "pytest-asyncio",
 ]
 
 [tool.setuptools]
 packages = ["app"]
 
-# Pytest'e asyncio modunu kullanmasını SÖYLÜYORUZ.
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

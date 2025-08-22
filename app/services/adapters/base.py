@@ -7,7 +7,6 @@ class BaseSTTAdapter(ABC):
     """
     
     @abstractmethod
-    # DÜZELTME: Fonksiyon artık opsiyonel bir 'language' parametresi alıyor.
     def transcribe(self, audio_bytes: bytes, language: Optional[str] = None) -> str:
         """
         Verilen ses byte'larını metne çevirir.

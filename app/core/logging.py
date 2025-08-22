@@ -1,37 +1,49 @@
+// File: sentiric-stt-service/app/core/logging.py
 import logging
 import sys
 import structlog
+from structlog.contextvars import merge_contextvars
 
-def setup_logging(log_level: str = "INFO", env: str = "production"):
-    log_level = log_level.upper()
-    logging.basicConfig(format="%(message)s", stream=sys.stdout, level=log_level)
-
-    shared_processors = [
-        structlog.contextvars.merge_contextvars,
-        structlog.stdlib.add_logger_name,
+# Bu, structlog'un log seviyesini standart logging ile senkronize etmesini sağlar.
+structlog.configure(
+    processors=[
+        merge_contextvars,
         structlog.stdlib.add_log_level,
-        structlog.stdlib.PositionalArgumentsFormatter(),
-        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
-        structlog.processors.UnicodeDecoder(),
-    ]
+        structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+    ],
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    wrapper_class=structlog.stdlib.BoundLogger,
+    cache_logger_on_first_use=True,
+)
 
-    if env == "development":
-        processors = shared_processors + [
-            structlog.dev.ConsoleRenderer(colors=True),
-        ]
-    else:
-        processors = shared_processors + [
-            structlog.processors.dict_tracebacks,
-            structlog.processors.JSONRenderer(),
-        ]
+def setup_logging(log_level: str, env: str):
+    log_level = log_level.upper()
     
-    structlog.configure(
-        processors=processors,
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        wrapper_class=structlog.stdlib.BoundLogger,
-        cache_logger_on_first_use=True,
+    # Formatter'ı structlog'un kendi işlemcileriyle oluşturuyoruz
+    formatter = structlog.stdlib.ProcessorFormatter(
+        foreign_pre_chain=[
+            structlog.stdlib.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso", utc=True),
+        ],
+        processor=structlog.dev.ConsoleRenderer() if env == "development" else structlog.processors.JSONRenderer(),
     )
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(formatter)
+    
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
+    root_logger.setLevel(log_level)
+    
+    # Uvicorn loglarını da yakalamak için
+    logging.getLogger("uvicorn.access").handlers = [handler]
+    logging.getLogger("uvicorn.error").handlers = [handler]
+
+    logger = structlog.get_logger("sentiric-stt-service")
+    logger.info("Logging configured", log_level=log_level, environment=env)
+    return logger
 
 logger = structlog.get_logger()

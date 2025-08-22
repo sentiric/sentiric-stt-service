@@ -1,17 +1,19 @@
 from faster_whisper import WhisperModel
 from app.core.config import settings
-from app.core.logging import logger
+import structlog
 import io
 from .base import BaseSTTAdapter
 from typing import Optional
+
+log = structlog.get_logger(__name__)
 
 class FasterWhisperAdapter(BaseSTTAdapter):
     _model: WhisperModel = None
     
     def __init__(self):
         if FasterWhisperAdapter._model is None:
-            logger.info(
-                "FasterWhisperAdapter modeli yükleniyor...",
+            log.info(
+                "Loading FasterWhisperAdapter model...",
                 model=settings.STT_SERVICE_MODEL_SIZE,
                 device=settings.STT_SERVICE_DEVICE,
                 compute_type=settings.STT_SERVICE_COMPUTE_TYPE
@@ -22,27 +24,25 @@ class FasterWhisperAdapter(BaseSTTAdapter):
                     device=settings.STT_SERVICE_DEVICE,
                     compute_type=settings.STT_SERVICE_COMPUTE_TYPE
                 )
-                logger.info("FasterWhisperAdapter modeli başarıyla yüklendi.")
+                log.info("FasterWhisperAdapter model loaded successfully.")
             except Exception as e:
-                logger.error("FasterWhisperAdapter modeli yüklenirken hata oluştu.", error=str(e))
+                log.error("Failed to load FasterWhisperAdapter model", error=str(e), exc_info=True)
                 raise e
 
-    # DÜZELTME: Fonksiyon artık opsiyonel bir 'language' parametresi alıyor.
     def transcribe(self, audio_bytes: bytes, language: Optional[str] = None) -> str:
         audio_stream = io.BytesIO(audio_bytes)
         
-        # DÜZELTME: Dil parametresini transcribe fonksiyonuna iletiyoruz.
         segments, info = self._model.transcribe(
             audio_stream, 
             beam_size=5, 
-            language=language # Eğer None ise, otomatik tespit çalışır.
+            language=language
         )
         
-        logger.info(
-            "Transkripsiyon tamamlandı.",
+        log.info(
+            "Transcription completed",
             detected_language=info.language,
-            language_probability=info.language_probability,
-            requested_language=language
+            language_probability=round(info.language_probability, 2),
+            requested_language=language or "auto"
         )
 
         full_text = "".join(segment.text for segment in segments)

@@ -1,31 +1,37 @@
 from app.core.config import settings
-from app.core.logging import logger
+import structlog
 from .adapters.base import BaseSTTAdapter
-from typing import Optional # YENİ
+from typing import Optional, Dict, Type
 
-_ADAPTERS = {}
-_loaded_adapter_instance: BaseSTTAdapter = None
+log = structlog.get_logger(__name__)
 
-def register_adapter(name: str, adapter_class):
+_ADAPTERS: Dict[str, Type[BaseSTTAdapter]] = {}
+_loaded_adapter_instance: Optional[BaseSTTAdapter] = None
+
+def register_adapter(name: str, adapter_class: Type[BaseSTTAdapter]):
     _ADAPTERS[name] = adapter_class
-    logger.debug(f"STT adaptörü kaydedildi: {name}")
+    log.debug("STT adapter registered", adapter_name=name)
 
-def load_adapter() -> BaseSTTAdapter:
+def load_adapter():
     global _loaded_adapter_instance
     if _loaded_adapter_instance is None:
         adapter_name = settings.STT_SERVICE_ADAPTER
-        logger.info(f"Yüklenecek STT adaptörü: {adapter_name}")
+        log.info(f"Loading STT adapter: {adapter_name}")
         adapter_class = _ADAPTERS.get(adapter_name)
         if not adapter_class:
-            logger.error(f"Adaptör bulunamadı: {adapter_name}. Kayıtlı adaptörler: {list(_ADAPTERS.keys())}")
-            raise ValueError(f"Geçersiz STT adaptörü: {adapter_name}")
+            log.error(f"Adapter not found: {adapter_name}. Registered adapters: {list(_ADAPTERS.keys())}")
+            raise ValueError(f"Invalid STT adapter: {adapter_name}")
         _loaded_adapter_instance = adapter_class()
+
+def get_adapter() -> Optional[BaseSTTAdapter]:
     return _loaded_adapter_instance
 
-# DÜZELTME: Fonksiyon artık opsiyonel bir 'language' parametresi alıyor.
 def transcribe_audio(audio_bytes: bytes, language: Optional[str] = None) -> str:
-    adapter = load_adapter()
+    adapter = get_adapter()
+    if not adapter:
+        raise RuntimeError("STT adapter is not loaded. Cannot transcribe audio.")
     return adapter.transcribe(audio_bytes, language)
 
+# Adaptörleri burada kaydediyoruz
 from .adapters.faster_whisper_adapter import FasterWhisperAdapter
 register_adapter("faster_whisper", FasterWhisperAdapter)
