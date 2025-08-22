@@ -1,4 +1,3 @@
-// File: sentiric-stt-service/app/core/logging.py
 import logging
 import sys
 import structlog
