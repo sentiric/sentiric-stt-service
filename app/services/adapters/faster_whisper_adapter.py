@@ -8,7 +8,7 @@ from typing import Optional, Union
 
 log = structlog.get_logger(__name__)
 
-SUPPRESS_TOKENS = [-1, 32331, 41558, 2691, 322, 50257]
+SUPPRESS_TOKENS = [-1] # Sadece -1'i bastırmak genellikle en güvenlisidir.
 
 class FasterWhisperAdapter(BaseSTTAdapter):
     
@@ -22,7 +22,11 @@ class FasterWhisperAdapter(BaseSTTAdapter):
             compute_type=settings.STT_SERVICE_COMPUTE_TYPE
         )
         try:
-            self.model = WhisperModel(settings.STT_SERVICE_MODEL_SIZE, device=settings.STT_SERVICE_DEVICE, compute_type=settings.STT_SERVICE_COMPUTE_TYPE)
+            self.model = WhisperModel(
+                settings.STT_SERVICE_MODEL_SIZE,
+                device=settings.STT_SERVICE_DEVICE,
+                compute_type=settings.STT_SERVICE_COMPUTE_TYPE
+            )
             self.model_loaded = True
             log.info("FasterWhisperAdapter model loaded successfully into instance.")
         except Exception as e:
@@ -38,9 +42,10 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         
         # Girişin byte mı numpy mı olduğunu kontrol et
         if isinstance(audio_input, bytes):
-            audio_stream = io.BytesIO(audio_input)
-            input_for_model = audio_stream
+            # Dosya yüklemesinden gelen byte'lar için (WAV, MP3 vb. başlık içerir)
+            input_for_model = io.BytesIO(audio_input)
         elif isinstance(audio_input, np.ndarray):
+            # Akıştan gelen ham PCM verisi için
             input_for_model = audio_input
         else:
             raise TypeError("Unsupported audio input type. Must be bytes or numpy.ndarray.")

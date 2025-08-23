@@ -25,8 +25,12 @@ class AudioProcessor:
             audio_data = bytes(self.speech_frames)
             self.speech_frames.clear()
 
-            # Artık adaptörün kendisi numpy array'i alıp AI ayarlarını uygulayacak.
-            final_text = self.adapter.transcribe(audio_data, self.language)
+            # --- İŞTE DÜZELTME BURADA ---
+            # Ham PCM byte'larını, faster-whisper'ın doğrudan işleyebileceği bir float32 numpy array'ine dönüştür.
+            audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32767.0
+
+            # Artık adaptöre numpy array'i gönderiyoruz.
+            final_text = self.adapter.transcribe(audio_np, self.language)
 
             if final_text:
                 log.info("Final transcription segment generated", text_length=len(final_text))
