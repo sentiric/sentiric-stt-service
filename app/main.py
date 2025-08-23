@@ -1,11 +1,12 @@
 import time
 import uuid
+import asyncio # YENİ
 from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request, Response
-from fastapi.staticfiles import StaticFiles # YENİ
-from fastapi.templating import Jinja2Templates # YENİ
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from prometheus_fastapi_instrumentator import Instrumentator
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
@@ -21,8 +22,10 @@ async def lifespan(app: FastAPI):
     log = structlog.get_logger("lifespan")
     log.info("Application starting up...")
     
-    # Modeli başlangıçta yükle
-    load_adapter()
+    # --- YENİ: Modeli arka planda yükle ---
+    # Bu, uygulamanın başlangıcını bloke etmez ve servis hemen isteklere yanıt verebilir.
+    loop = asyncio.get_event_loop()
+    loop.create_task(load_adapter())
     
     yield
     log.info("Application shutting down.")
@@ -30,7 +33,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 log = structlog.get_logger(__name__)
 
-# YENİ: Statik dosyaları (CSS, JS) sunmak için
+# Statik dosyaları (CSS, JS) sunmak için
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
@@ -69,9 +72,13 @@ async def read_root(request: Request):
 @app.head("/health")
 def health_check():
     adapter = get_adapter()
-    is_loaded = adapter is not None and getattr(adapter, '_model', None) is not None
-    status = {"status": "ok", "adapter_loaded": is_loaded, "adapter_type": settings.STT_SERVICE_ADAPTER}
-    log.debug("Health check performed", **status)
+    is_loaded = adapter is not None and getattr(adapter, 'model_loaded', False)
+
     if not is_loaded:
-        return Response(content=str(status), status_code=503)
+        status = {"status": "loading_model", "adapter_loaded": is_loaded, "adapter_type": settings.STT_SERVICE_ADAPTER}
+        log.warn("Health check failed: Model is not loaded yet.", **status)
+        return Response(content=str(status), status_code=503, media_type="application/json")
+    
+    status = {"status": "ok", "adapter_loaded": is_loaded, "adapter_type": settings.STT_SERVICE_ADAPTER}
+    log.debug("Health check performed successfully", **status)
     return status
