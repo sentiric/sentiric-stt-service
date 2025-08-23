@@ -15,7 +15,11 @@ def register_adapter(name: str, adapter_class: Type[BaseSTTAdapter]):
 
 async def load_and_set_adapter(app: FastAPI):
     adapter_name = settings.STT_SERVICE_ADAPTER
-    log.info(f"Starting background loading of STT adapter: {adapter_name}")
+    log.info(
+        "Starting background loading of STT adapter. This may take several minutes depending on the model size...",
+        adapter_name=adapter_name,
+        model_size=settings.STT_SERVICE_MODEL_SIZE
+    )
     
     loop = asyncio.get_event_loop()
     
@@ -30,7 +34,7 @@ async def load_and_set_adapter(app: FastAPI):
         
         app.state.stt_adapter = adapter_instance
         app.state.model_ready = True
-        log.info(f"STT adapter '{adapter_name}' loaded and ready.", model_ready=app.state.model_ready)
+        log.info(f"SUCCESS: STT adapter '{adapter_name}' is now loaded and ready.", model_ready=app.state.model_ready)
     except Exception as e:
         app.state.model_ready = False
         app.state.stt_adapter = None
