@@ -1,6 +1,6 @@
 import time
 import uuid
-import asyncio # YENİ
+import asyncio
 from contextlib import asynccontextmanager
 
 import structlog
@@ -13,19 +13,19 @@ from structlog.contextvars import bind_contextvars, clear_contextvars
 from app.api.v1.endpoints import router as api_v1_router
 from app.core.config import settings
 from app.core.logging import setup_logging
-from app.services.stt_service import get_adapter, load_adapter
+from app.services import stt_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Loglamayı burada başlatıyoruz
     setup_logging(log_level=settings.LOG_LEVEL, env=settings.ENV)
     log = structlog.get_logger("lifespan")
     log.info("Application starting up...")
     
-    # --- YENİ: Modeli arka planda yükle ---
-    # Bu, uygulamanın başlangıcını bloke etmez ve servis hemen isteklere yanıt verebilir.
+    app.state.model_ready = False
+    app.state.stt_adapter = None
+    
     loop = asyncio.get_event_loop()
-    loop.create_task(load_adapter())
+    loop.create_task(stt_service.load_and_set_adapter(app))
     
     yield
     log.info("Application shutting down.")
@@ -33,17 +33,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 log = structlog.get_logger(__name__)
 
-# Statik dosyaları (CSS, JS) sunmak için
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
-# Middleware: Her istek için loglama ve trace_id
 @app.middleware("http")
 async def logging_middleware(request: Request, call_next) -> Response:
     clear_contextvars()
     start_time = time.perf_counter()
     
-    # Gelen header'dan trace_id'yi al, yoksa yeni bir tane oluştur
     trace_id = request.headers.get("X-Trace-ID") or f"stt-trace-{uuid.uuid4()}"
     bind_contextvars(trace_id=trace_id)
 
@@ -59,26 +56,24 @@ async def logging_middleware(request: Request, call_next) -> Response:
     )
     return response
 
-# Prometheus metrikleri için
-Instrumentator().instrument(app).expose(app)
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 
-# YENİ: Test arayüzü için kök endpoint
 @app.get("/", include_in_schema=False)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/health", tags=["Health"])
 @app.head("/health")
-def health_check():
-    adapter = get_adapter()
-    is_loaded = adapter is not None and getattr(adapter, 'model_loaded', False)
+def health_check(request: Request):
+    is_loaded = getattr(request.app.state, 'model_ready', False)
 
     if not is_loaded:
-        status = {"status": "loading_model", "adapter_loaded": is_loaded, "adapter_type": settings.STT_SERVICE_ADAPTER}
+        status = {"status": "loading_model", "model_ready": is_loaded, "adapter_type": settings.STT_SERVICE_ADAPTER}
         log.warn("Health check failed: Model is not loaded yet.", **status)
         return Response(content=str(status), status_code=503, media_type="application/json")
     
-    status = {"status": "ok", "adapter_loaded": is_loaded, "adapter_type": settings.STT_SERVICE_ADAPTER}
+    status = {"status": "ok", "model_ready": is_loaded, "adapter_type": settings.STT_SERVICE_ADAPTER}
     log.debug("Health check performed successfully", **status)
     return status
+
+Instrumentator().instrument(app).expose(app)

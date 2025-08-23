@@ -29,8 +29,6 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         except Exception as e:
             self.model_loaded = False
             log.error("Failed to load FasterWhisperAdapter model", error=str(e), exc_info=True)
-            # Yükleme başarısız olsa bile uygulamanın çökmemesi için hatayı yutmuyoruz, 
-            # ancak `stt_service.py`'deki try-except bloğu bunu yakalayacak.
             raise e
 
     def transcribe(self, audio_bytes: bytes, language: Optional[str] = None) -> str:
