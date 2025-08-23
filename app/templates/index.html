@@ -14,32 +14,46 @@
         </header>
         
         <div class="tabs">
-            <button class="tab-link active" onclick="openTab(event, 'file-upload')">Dosya Yükleme</button>
-            <button class="tab-link" onclick="openTab(event, 'real-time')">Gerçek Zamanlı</button>
+            <button class="tab-link active" data-tab="file-upload">Dosya Yükleme</button>
+            <button class="tab-link" data-tab="real-time">Gerçek Zamanlı</button>
         </div>
 
         <main>
             <!-- Dosya Yükleme Sekmesi -->
             <div id="file-upload" class="tab-content active">
                 <form id="transcribe-form">
-                    <!-- ... (mevcut form aynı kalıyor) ... -->
+                    <div class="form-group">
+                        <label for="audio-file">Ses Dosyası Seçin (.wav, .mp3, .ogg, vb.)</label>
+                        <input type="file" id="audio-file" name="audio_file" accept="audio/*" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="language-file">Dil (İsteğe Bağlı, boş bırakırsanız otomatik algılar)</label>
+                        <input type="text" id="language-file" name="language" placeholder="örn: tr, en">
+                    </div>
+                    <button type="submit" id="submit-btn">Metne Çevir</button>
                 </form>
                 <div id="file-result-container" class="result-container hidden">
-                    <!-- ... (mevcut sonuç alanı aynı kalıyor) ... -->
+                    <h2>Çeviri Sonucu:</h2>
+                    <div id="file-spinner" class="spinner hidden"></div>
+                    <pre id="file-result-text"></pre>
+                    <div id="file-error-message" class="error hidden"></div>
                 </div>
             </div>
 
             <!-- Gerçek Zamanlı Sekmesi -->
             <div id="real-time" class="tab-content">
+                <div class="form-group">
+                    <label for="language-stream">Dil (İsteğe Bağlı)</label>
+                    <input type="text" id="language-stream" placeholder="örn: tr, en">
+                </div>
                 <div class="real-time-controls">
-                    <button id="record-btn">Kaydı Başlat</button>
+                    <button id="record-btn">🎤 Kaydı Başlat</button>
                     <p id="status-text">Durum: Beklemede</p>
                 </div>
                 <div id="stream-result-container" class="result-container hidden">
-                    <h2>Anlık Çeviri:</h2>
-                    <pre id="stream-result-text"></pre>
                     <h2>Nihai Çeviri:</h2>
                     <pre id="final-result-text"></pre>
+                    <div id="stream-error-message" class="error hidden"></div>
                 </div>
             </div>
         </main>

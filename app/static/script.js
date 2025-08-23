@@ -1,93 +1,170 @@
-// ... (mevcut dosya yükleme kodu) ...
+document.addEventListener('DOMContentLoaded', () => {
+    // Sekme yönetimi
+    const tabs = document.querySelectorAll('.tab-link');
+    const tabContents = document.querySelectorAll('.tab-content');
 
-// YENİ: Gerçek Zamanlı Transkripsiyon Mantığı
-const recordBtn = document.getElementById('record-btn');
-const statusText = document.getElementById('status-text');
-const streamResultContainer = document.getElementById('stream-result-container');
-const streamResultText = document.getElementById('stream-result-text');
-const finalResultText = document.getElementById('final-result-text');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(item => item.classList.remove('active'));
+            tab.classList.add('active');
 
-let websocket;
-let mediaRecorder;
-let isRecording = false;
+            const target = document.querySelector(`#${tab.dataset.tab}`);
+            tabContents.forEach(content => content.classList.remove('active'));
+            target.classList.add('active');
+        });
+    });
 
-recordBtn.addEventListener('click', () => {
-    if (isRecording) {
-        stopRecording();
-    } else {
-        startRecording();
-    }
-});
+    // Dosya Yükleme Mantığı
+    const transcribeForm = document.getElementById('transcribe-form');
+    transcribeForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
 
-function startRecording() {
-    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-        .then(stream => {
+        const form = event.target;
+        const formData = new FormData(form);
+        const resultContainer = document.getElementById('file-result-container');
+        const resultText = document.getElementById('file-result-text');
+        const errorMessage = document.getElementById('file-error-message');
+        const spinner = document.getElementById('file-spinner');
+        const submitBtn = document.getElementById('submit-btn');
+
+        resultContainer.classList.remove('hidden');
+        resultText.textContent = '';
+        errorMessage.classList.add('hidden');
+        spinner.classList.remove('hidden');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'İşleniyor...';
+
+        try {
+            const response = await fetch('/api/v1/transcribe', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP hatası! Durum: ${response.status}`);
+            }
+
+            const data = await response.json();
+            resultText.textContent = data.text;
+            
+        } catch (error) {
+            console.error('Transkripsiyon hatası:', error);
+            errorMessage.textContent = `Hata: ${error.message}`;
+            errorMessage.classList.remove('hidden');
+        } finally {
+            spinner.classList.add('hidden');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Metne Çevir';
+        }
+    });
+
+    // Gerçek Zamanlı Transkripsiyon Mantığı
+    const recordBtn = document.getElementById('record-btn');
+    const statusText = document.getElementById('status-text');
+    const streamResultContainer = document.getElementById('stream-result-container');
+    const finalResultText = document.getElementById('final-result-text');
+    const streamErrorMessage = document.getElementById('stream-error-message');
+    const languageStreamInput = document.getElementById('language-stream');
+
+    let websocket;
+    let mediaRecorder;
+    let audioContext;
+    let processor;
+    let isRecording = false;
+
+    recordBtn.addEventListener('click', () => {
+        if (isRecording) {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    });
+
+    async function startRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            
             isRecording = true;
-            recordBtn.textContent = 'Kaydı Durdur';
-            statusText.textContent = 'Durum: Kaydediliyor...';
+            recordBtn.textContent = '🛑 Kaydı Durdur';
+            recordBtn.classList.add('recording');
+            statusText.textContent = 'Durum: Bağlanılıyor...';
             streamResultContainer.classList.remove('hidden');
-            streamResultText.textContent = '';
+            streamErrorMessage.classList.add('hidden');
             finalResultText.textContent = '';
             
-            const wsUrl = `ws://${window.location.host}/api/v1/transcribe-stream`;
+            const language = languageStreamInput.value.trim();
+            const wsUrl = `ws://${window.location.host}/api/v1/transcribe-stream${language ? `?language=${language}` : ''}`;
             websocket = new WebSocket(wsUrl);
 
             websocket.onopen = () => {
-                statusText.textContent = 'Durum: Bağlantı kuruldu, konuşun...';
-                mediaRecorder = new MediaRecorder(stream);
-                mediaRecorder.ondataavailable = event => {
-                    if (event.data.size > 0 && websocket.readyState === WebSocket.OPEN) {
-                        websocket.send(event.data);
+                statusText.textContent = 'Durum: Bağlantı kuruldu, konuşabilirsiniz...';
+                audioContext = new AudioContext({ sampleRate: 16000 });
+                const source = audioContext.createMediaStreamSource(stream);
+                processor = audioContext.createScriptProcessor(1024, 1, 1);
+
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+
+                processor.onaudioprocess = (e) => {
+                    const inputData = e.inputBuffer.getChannelData(0);
+                    const int16Data = new Int16Array(inputData.length);
+                    for (let i = 0; i < inputData.length; i++) {
+                        int16Data[i] = Math.max(-1, Math.min(1, inputData[i])) * 32767;
+                    }
+                    if (websocket.readyState === WebSocket.OPEN) {
+                        websocket.send(int16Data.buffer);
                     }
                 };
-                mediaRecorder.start(250); // Her 250ms'de bir veri gönder
             };
 
             websocket.onmessage = event => {
                 const result = JSON.parse(event.data);
-                if (result.type === 'partial') {
-                    streamResultText.textContent = result.text;
-                } else if (result.type === 'final') {
+                if (result.type === 'final' && result.text) {
                     finalResultText.textContent += result.text + ' ';
-                    streamResultText.textContent = ''; // Geçici metni temizle
                 } else if (result.type === 'error') {
-                    statusText.textContent = `Hata: ${result.message}`;
+                    streamErrorMessage.textContent = `Hata: ${result.message}`;
+                    streamErrorMessage.classList.remove('hidden');
                 }
             };
 
             websocket.onclose = () => {
                 statusText.textContent = 'Durum: Bağlantı kapandı.';
-                stopRecording(stream);
+                if(isRecording) stopRecording(stream);
             };
             
             websocket.onerror = (error) => {
-                console.error('WebSocket Error:', error);
-                statusText.textContent = 'Hata: WebSocket bağlantı hatası.';
+                console.error('WebSocket Hatası:', error);
+                streamErrorMessage.textContent = 'Hata: WebSocket bağlantı hatası.';
+                streamErrorMessage.classList.remove('hidden');
+                if(isRecording) stopRecording(stream);
             };
 
-        })
-        .catch(err => {
+        } catch (err) {
             console.error('Mikrofon erişim hatası:', err);
-            statusText.textContent = 'Hata: Mikrofon erişimi reddedildi.';
-        });
-}
+            statusText.textContent = 'Hata: Mikrofon erişimi reddedildi veya bulunamadı.';
+        }
+    }
 
-function stopRecording(stream) {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
+    function stopRecording(stream) {
+        if (processor) {
+            processor.disconnect();
+            processor = null;
+        }
+        if (audioContext) {
+            audioContext.close();
+            audioContext = null;
+        }
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.close();
+        }
+        if(stream) {
+             stream.getTracks().forEach(track => track.stop());
+        }
+        
+        isRecording = false;
+        recordBtn.textContent = '🎤 Kaydı Başlat';
+        recordBtn.classList.remove('recording');
+        statusText.textContent = 'Durum: Beklemede';
     }
-    if (websocket && websocket.readyState === WebSocket.OPEN) {
-        websocket.close();
-    }
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-    }
-    isRecording = false;
-    recordBtn.textContent = 'Kaydı Başlat';
-    statusText.textContent = 'Durum: Beklemede';
-}
-
-// Sekme yönetimi
-function openTab(evt, tabName) {
-    // ... (sekme değiştirme JS kodu) ...
-}
+});

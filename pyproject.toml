@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sentiric-stt-service"
-version = "0.2.0" # Sürüm yükseltiyoruz
+version = "0.2.0"
 description = "High-performance, streaming STT service for the Sentiric ecosystem."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi",
     "uvicorn[standard]",
-    "websockets", # YENİ: WebSocket desteği için
+    "websockets",
     "python-multipart",
     "pydantic",
     "pydantic-settings",
@@ -24,8 +24,8 @@ dependencies = [
     "ctranslate2>=3.20.0,<4.0.0",
     "soundfile",
     "jinja2",
-    "numpy", # YENİ: Ses verisi işleme için gerekli
-    "webrtcvad", # YENİ: Ses Aktivite Tespiti (VAD) için
+    "numpy",
+    "webrtcvad",
 ]
 
 [project.optional-dependencies]

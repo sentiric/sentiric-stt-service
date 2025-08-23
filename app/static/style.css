@@ -4,7 +4,7 @@ body {
     color: #333;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     min-height: 100vh;
     margin: 0;
     padding: 20px;
@@ -13,28 +13,64 @@ body {
 
 .container {
     background-color: #fff;
-    padding: 40px;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    max-width: 600px;
+    padding: 30px 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+    max-width: 700px;
     width: 100%;
 }
 
 header {
     text-align: center;
-    margin-bottom: 30px;
-    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 25px;
+    border-bottom: 1px solid #e9ecef;
     padding-bottom: 20px;
 }
 
 header h1 {
     color: #2c3e50;
     margin: 0;
+    font-size: 1.8rem;
 }
 
 header p {
     color: #7f8c8d;
     font-size: 1rem;
+}
+
+.tabs {
+    display: flex;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 25px;
+}
+
+.tab-link {
+    background: none;
+    border: none;
+    padding: 15px 20px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #6c757d;
+    position: relative;
+    transition: color 0.2s ease-in-out;
+}
+
+.tab-link:hover {
+    color: #343a40;
+}
+
+.tab-link.active {
+    color: #3498db;
+    border-bottom: 3px solid #3498db;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
 }
 
 .form-group {
@@ -45,56 +81,72 @@ label {
     display: block;
     margin-bottom: 8px;
     font-weight: 600;
-    color: #555;
+    color: #495057;
 }
 
 input[type="file"], input[type="text"] {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    padding: 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
     box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
-
-input[type="file"] {
-    cursor: pointer;
+input[type="file"]:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
 }
 
 button {
     width: 100%;
-    padding: 12px;
+    padding: 14px;
     background-color: #3498db;
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 1.1rem;
     font-weight: 600;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease, transform 0.1s ease;
 }
 
 button:hover {
     background-color: #2980b9;
 }
+button:active {
+    transform: scale(0.98);
+}
+button:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+}
 
-#result-container {
+#record-btn.recording {
+    background-color: #e74c3c;
+}
+#record-btn.recording:hover {
+    background-color: #c0392b;
+}
+
+.result-container {
     margin-top: 30px;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid #e9ecef;
     padding-top: 20px;
 }
 
-#result-text {
-    background-color: #ecf0f1;
+pre {
+    background-color: #f8f9fa;
     padding: 15px;
-    border-radius: 4px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
     white-space: pre-wrap;
     word-wrap: break-word;
-    font-family: "Courier New", Courier, monospace;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    min-height: 50px;
 }
 
-.hidden {
-    display: none;
-}
+.hidden { display: none; }
 
 .spinner {
     border: 4px solid #f3f3f3;
@@ -106,22 +158,30 @@ button:hover {
     margin: 20px auto;
 }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
 .error {
     background-color: #e74c3c;
     color: white;
     padding: 15px;
-    border-radius: 4px;
+    border-radius: 6px;
     text-align: center;
+    font-weight: 500;
+}
+
+.real-time-controls { margin-bottom: 20px; }
+.real-time-controls #status-text {
+    text-align: center;
+    margin-top: 15px;
+    color: #6c757d;
+    font-style: italic;
 }
 
 footer {
     text-align: center;
     margin-top: 30px;
-    font-size: 0.8rem;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+    font-size: 0.9rem;
     color: #95a5a6;
 }
