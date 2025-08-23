@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request, Response
+from fastapi.staticfiles import StaticFiles # YENİ
+from fastapi.templating import Jinja2Templates # YENİ
 from prometheus_fastapi_instrumentator import Instrumentator
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
@@ -27,6 +29,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 log = structlog.get_logger(__name__)
+
+# YENİ: Statik dosyaları (CSS, JS) sunmak için
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+templates = Jinja2Templates(directory="app/templates")
 
 # Middleware: Her istek için loglama ve trace_id
 @app.middleware("http")
@@ -53,6 +59,11 @@ async def logging_middleware(request: Request, call_next) -> Response:
 # Prometheus metrikleri için
 Instrumentator().instrument(app).expose(app)
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
+
+# YENİ: Test arayüzü için kök endpoint
+@app.get("/", include_in_schema=False)
+async def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/health", tags=["Health"])
 @app.head("/health")

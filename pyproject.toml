@@ -22,6 +22,7 @@ dependencies = [
     "faster-whisper",
     "ctranslate2>=3.20.0,<4.0.0",
     "soundfile",
+    "jinja2", # YENİ: Test arayüzü için şablon motoru
 ]
 
 [project.optional-dependencies]

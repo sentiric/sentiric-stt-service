@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     # .env'de: STT_SERVICE_COMPUTE_TYPE
     STT_SERVICE_COMPUTE_TYPE: str = Field("int8", validation_alias="STT_SERVICE_COMPUTE_TYPE")
 
+    # YENİ: Ses dosyalarını yeniden örneklemek için hedef örnekleme oranı
+    # Kod içinde: settings.STT_SERVICE_TARGET_SAMPLE_RATE
+    # .env'de: STT_SERVICE_TARGET_SAMPLE_RATE
+    STT_SERVICE_TARGET_SAMPLE_RATE: int = Field(16000, validation_alias="STT_SERVICE_TARGET_SAMPLE_RATE")
+
     model_config = SettingsConfigDict(
         # Pydantic, değerleri doğrudan ortam değişkenlerinden okuyacak.
         # env_file=None, # Bu satırı tamamen silebiliriz, varsayılanı zaten budur

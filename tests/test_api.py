@@ -19,17 +19,27 @@ async def test_health_check():
     assert response.status_code == 200
     json_response = response.json()
     assert json_response["status"] == "ok"
-    assert json_response["model_loaded"] is True
+    assert json_response["adapter_loaded"] is True
 
 @pytest.mark.asyncio
-async def test_transcribe_audio_valid_file(tmp_path):
+async def test_ui_endpoint():
     """
-    /transcribe endpoint'ine geçerli bir ses dosyası gönderildiğinde
-    200 OK yanıtı ve metin döndürdüğünü test eder.
+    YENİ: Test arayüzünün sunulduğu kök endpoint'in 200 OK döndüğünü test eder.
     """
-    # Geçici bir WAV dosyası oluştur
-    sample_wav_path = tmp_path / "sample.wav"
-    samplerate = 16000
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.get("/")
+    assert response.status_code == 200
+    assert "Sentiric STT Service - Test Arayüzü" in response.text
+
+@pytest.mark.asyncio
+async def test_transcribe_audio_valid_file_with_resampling(tmp_path):
+    """
+    /transcribe endpoint'ine farklı bir sample rate ile geçerli bir ses dosyası gönderildiğinde
+    yeniden örnekleme yaparak 200 OK yanıtı ve metin döndürdüğünü test eder.
+    """
+    # Geçici bir WAV dosyası oluştur (44.1kHz)
+    sample_wav_path = tmp_path / "sample_44100.wav"
+    samplerate = 44100
     data = np.zeros(samplerate)  # 1 saniyelik sessizlik
     sf.write(sample_wav_path, data, samplerate)
 
@@ -54,4 +64,5 @@ async def test_transcribe_invalid_file_type():
         response = await ac.post("/api/v1/transcribe", files=files)
     
     assert response.status_code == 400
-    assert "Geçersiz dosya tipi" in response.json()["detail"]
+    # GÜNCELLENDİ: Hata mesajını daha standart bir hale getirdik
+    assert "Invalid file type" in response.json()["detail"]

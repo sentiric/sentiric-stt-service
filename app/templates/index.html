@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentiric STT Service - Test Arayüzü</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ Sentiric STT Service</h1>
+            <p>Bu arayüzü kullanarak ses dosyalarını metne çevirebilirsiniz.</p>
+        </header>
+        <main>
+            <form id="transcribe-form">
+                <div class="form-group">
+                    <label for="audio-file">Ses Dosyası Seçin (.wav, .mp3, .ogg, vb.)</label>
+                    <input type="file" id="audio-file" name="audio_file" accept="audio/*" required>
+                </div>
+                <div class="form-group">
+                    <label for="language">Dil (İsteğe Bağlı, boş bırakırsanız otomatik algılar)</label>
+                    <input type="text" id="language" name="language" placeholder="örn: tr, en">
+                </div>
+                <button type="submit" id="submit-btn">Metne Çevir</button>
+            </form>
+            <div id="result-container" class="hidden">
+                <h2>Çeviri Sonucu:</h2>
+                <div id="spinner" class="spinner hidden"></div>
+                <pre id="result-text"></pre>
+                <div id="error-message" class="error hidden"></div>
+            </div>
+        </main>
+        <footer>
+            <p>Sentiric "İletişim İşletim Sistemi"</p>
+        </footer>
+    </div>
+    <script src="{{ url_for('static', path='/script.js') }}"></script>
+</body>
+</html>

@@ -3,6 +3,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from pydantic import BaseModel
 from typing import Optional
 from app.services.stt_service import transcribe_audio
+from app.utils.audio import resample_audio # YENİ: import
 
 router = APIRouter()
 log = structlog.get_logger(__name__)
@@ -25,10 +26,14 @@ async def create_transcription(
     
     try:
         audio_bytes = await audio_file.read()
+
+        # YENİ: Sesi transkripsiyondan önce yeniden örnekle
+        resampled_audio_bytes = resample_audio(audio_bytes)
         
         log.info("Transcription request received", filename=audio_file.filename, language=language or "auto", size_kb=round(len(audio_bytes) / 1024, 2))
         
-        result_text = transcribe_audio(audio_bytes, language)
+        # YENİ: Yeniden örneklenmiş veriyi kullanarak transkripsiyon yap
+        result_text = transcribe_audio(resampled_audio_bytes, language)
         
         log.info("Transcription successful", text_length=len(result_text))
         return {"text": result_text}
