@@ -10,6 +10,8 @@ class AudioProcessor:
     def __init__(self, adapter: BaseSTTAdapter, language: str | None = None, vad_aggressiveness: int = 3):
         self.adapter = adapter
         self.language = language if language else None
+        # --- DEĞİŞİKLİK: Agresiflik seviyesini 3'e (en yüksek) çıkarıyoruz ---
+        # Bu, VAD'ın sadece net konuşmaları algılamasını sağlar ve gürültüyü filtreler.
         self.vad = webrtcvad.Vad(vad_aggressiveness)
         self.buffer = bytearray()
         self.vad_frame_size = 960
@@ -17,6 +19,7 @@ class AudioProcessor:
         self.is_speaking = False
         self.silent_chunks = 0
 
+    # ... (geri kalan kod aynı kalabilir, çünkü en büyük etki VAD ayarından gelecek) ...
     async def _process_final_chunk(self):
         if not self.speech_frames:
             return None
@@ -24,12 +27,9 @@ class AudioProcessor:
         try:
             audio_data = bytes(self.speech_frames)
             self.speech_frames.clear()
-
-            # --- İŞTE DÜZELTME BURADA ---
-            # Ham PCM byte'larını, faster-whisper'ın doğrudan işleyebileceği bir float32 numpy array'ine dönüştür.
+            
             audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32767.0
 
-            # Artık adaptöre numpy array'i gönderiyoruz.
             final_text = self.adapter.transcribe(audio_np, self.language)
 
             if final_text:
