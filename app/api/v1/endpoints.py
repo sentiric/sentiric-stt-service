@@ -1,3 +1,4 @@
+import asyncio # YENİ
 import structlog
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form, WebSocket, WebSocketDisconnect, Request
 from pydantic import BaseModel
@@ -11,7 +12,6 @@ log = structlog.get_logger(__name__)
 
 class TranscriptionResponse(BaseModel):
     text: str
-
 @router.post("/transcribe", response_model=TranscriptionResponse, tags=["Speech-to-Text (Dosya)"])
 async def create_transcription(
     request: Request,
@@ -42,22 +42,22 @@ async def create_transcription(
         log.error("Error during transcription", error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred while processing the audio file.")
 
+
 @router.websocket("/transcribe-stream")
 async def websocket_transcription(websocket: WebSocket, language: Optional[str] = None):
     await websocket.accept()
     client_info = f"{websocket.client.host}:{websocket.client.port}"
     log.info("WebSocket connection established", client=client_info, language=language)
     
+    task = None
     try:
         adapter = get_adapter(websocket)
         if not adapter:
-            # Model hazır değilse, WebSocket'e hata mesajı gönder ve kapat
             await websocket.send_json({"type": "error", "message": "Model is not ready, please try again in a moment."})
-            await websocket.close()
+            await websocket.close(code=1011) # 1011 = Internal Error
             log.warn("WebSocket connection rejected because model is not ready.", client=client_info)
             return
         
-        # --- İŞTE DÜZELTME BURADA ---
         audio_processor = AudioProcessor(adapter=adapter, language=language)
 
         async def audio_chunk_generator():
@@ -68,10 +68,23 @@ async def websocket_transcription(websocket: WebSocket, language: Optional[str] 
             except WebSocketDisconnect:
                 log.info("WebSocket client disconnected.", client=client_info)
 
-        async for result in audio_processor.transcribe_stream(audio_chunk_generator()):
-            await websocket.send_json(result)
+        # Ana transkripsiyon döngüsünü bir asyncio Task olarak başlat
+        async def transcribe_loop():
+            async for result in audio_processor.transcribe_stream(audio_chunk_generator()):
+                await websocket.send_json(result)
+        
+        task = asyncio.create_task(transcribe_loop())
+        await task
 
+    except asyncio.CancelledError:
+        log.info("Transcription task cancelled for client.", client=client_info)
     except Exception as e:
-        log.error("Error in WebSocket transcription stream", client=client_info, error=str(e), exc_info=True)
+        log.error("Error in WebSocket main handler", client=client_info, error=str(e), exc_info=True)
     finally:
-        log.info("WebSocket connection closed", client=client_info)
+        # Bağlantı kapandığında, eğer görev hala çalışıyorsa zorla iptal et.
+        if task and not task.done():
+            task.cancel()
+        
+        if websocket.client_state.name != "DISCONNECTED":
+            await websocket.close()
+        log.info("WebSocket connection resources cleaned up.", client=client_info)

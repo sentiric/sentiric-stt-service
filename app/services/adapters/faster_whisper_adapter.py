@@ -2,10 +2,13 @@ from faster_whisper import WhisperModel
 from app.core.config import settings
 import structlog
 import io
+import numpy as np
 from .base import BaseSTTAdapter
-from typing import Optional
+from typing import Optional, Union
 
 log = structlog.get_logger(__name__)
+
+SUPPRESS_TOKENS = [-1, 32331, 41558, 2691, 322, 50257]
 
 class FasterWhisperAdapter(BaseSTTAdapter):
     
@@ -19,11 +22,7 @@ class FasterWhisperAdapter(BaseSTTAdapter):
             compute_type=settings.STT_SERVICE_COMPUTE_TYPE
         )
         try:
-            self.model = WhisperModel(
-                settings.STT_SERVICE_MODEL_SIZE,
-                device=settings.STT_SERVICE_DEVICE,
-                compute_type=settings.STT_SERVICE_COMPUTE_TYPE
-            )
+            self.model = WhisperModel(settings.STT_SERVICE_MODEL_SIZE, device=settings.STT_SERVICE_DEVICE, compute_type=settings.STT_SERVICE_COMPUTE_TYPE)
             self.model_loaded = True
             log.info("FasterWhisperAdapter model loaded successfully into instance.")
         except Exception as e:
@@ -31,19 +30,28 @@ class FasterWhisperAdapter(BaseSTTAdapter):
             log.error("Failed to load FasterWhisperAdapter model", error=str(e), exc_info=True)
             raise e
 
-    def transcribe(self, audio_bytes: bytes, language: Optional[str] = None) -> str:
+    def transcribe(self, audio_input: Union[bytes, np.ndarray], language: Optional[str] = None) -> str:
         if not self.model_loaded or self.model is None:
-            log.error("Transcription called but model is not loaded.")
             raise RuntimeError("Model is not available for transcription.")
             
         effective_language = language if language else None
         
-        audio_stream = io.BytesIO(audio_bytes)
-        
+        # Girişin byte mı numpy mı olduğunu kontrol et
+        if isinstance(audio_input, bytes):
+            audio_stream = io.BytesIO(audio_input)
+            input_for_model = audio_stream
+        elif isinstance(audio_input, np.ndarray):
+            input_for_model = audio_input
+        else:
+            raise TypeError("Unsupported audio input type. Must be bytes or numpy.ndarray.")
+
         segments, info = self.model.transcribe(
-            audio_stream, 
+            input_for_model, 
             beam_size=5, 
-            language=effective_language
+            language=effective_language,
+            no_speech_threshold=0.6,
+            log_prob_threshold=-1.0,
+            suppress_tokens=SUPPRESS_TOKENS
         )
         
         log.info(
