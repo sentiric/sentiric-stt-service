@@ -4,7 +4,6 @@
 networks:
   sentiric-net: { name: "${NETWORK_NAME:-sentiric-net}", driver: bridge }
 
-# YENİ: Modelleri saklamak için kalıcı bir volume tanımlıyoruz
 volumes:
   stt-model-cache:
 
@@ -19,7 +18,13 @@ services:
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
-      interval: 30s
-      timeout: 10s
+      # Model hazır olduğunda daha hızlı haberdar olalım
+      interval: 10s
+      # Yanıt için bekleme süresi
+      timeout: 5s
+      # Sağlıksız saymadan önce deneme sayısı
       retries: 5
-      start_period: 3m
+      # --- EN KRİTİK DEĞİŞİKLİK ---
+      # Konteynere başlaması ve büyük modeli indirmesi/yüklemesi için 10 dakika süre tanı.
+      # Bu süre boyunca healthcheck başarısız olsa bile konteyner sağlıksız sayılmaz.
+      start_period: 10m
