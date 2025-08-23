@@ -8,12 +8,18 @@ from typing import Optional, Union
 
 log = structlog.get_logger(__name__)
 
-SUPPRESS_TOKENS = [-1]
+# --- GÜVEN EŞİKLERİ (Yapılandırılabilir olabilir) ---
+# Ortalama log olasılığı bu değerden düşük olan segmentleri atla.
+# -1.0 çok gevşek, -0.5 daha sıkı bir filtredir.
+LOGPROB_THRESHOLD = -0.6
+
+# Konuşma olmama olasılığı bu değerden yüksek olan segmentleri atla.
+# 0.90, %90 ihtimalle konuşma değil demek.
+NO_SPEECH_PROB_THRESHOLD = 0.75
 
 class FasterWhisperAdapter(BaseSTTAdapter):
     
     def __init__(self):
-        # ... __init__ kodu aynı ...
         self.model: WhisperModel | None = None
         self.model_loaded: bool = False
         log.info(
@@ -48,22 +54,42 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         else:
             raise TypeError("Unsupported audio input type. Must be bytes or numpy.ndarray.")
 
+        # --- YENİ ve DOĞRU YÖNTEM: Olasılıkları alarak transkripsiyon yap ---
         segments, info = self.model.transcribe(
             input_for_model, 
             beam_size=5, 
             language=effective_language,
-            # --- YENİ STRATEJİ ---
-            # Whisper'ın kendi VAD filtresini etkinleştir. Bu, gürültülü segmentleri atar.
-            vad_filter=True,
-            vad_parameters=dict(min_silence_duration_ms=500)
+            vad_filter=True, # Whisper'ın kendi VAD'ını kullanalım
+            vad_parameters=dict(min_silence_duration_ms=500),
         )
         
         log.info(
-            "Transcription completed",
+            "Transcription by model completed",
             detected_language=info.language,
-            language_probability=round(info.language_probability, 2),
-            requested_language=language or "auto"
+            language_probability=round(info.language_probability, 2)
         )
 
-        full_text = "".join(segment.text for segment in segments)
-        return full_text.strip()
+        filtered_segments = []
+        for segment in segments:
+            # Segmentin güvenilir olup olmadığını kontrol et
+            is_reliable = (segment.avg_logprob > LOGPROB_THRESHOLD) and (segment.no_speech_prob < NO_SPEECH_PROB_THRESHOLD)
+            
+            if is_reliable:
+                filtered_segments.append(segment.text)
+                log.debug(
+                    "Segment kept.", 
+                    text=segment.text,
+                    avg_logprob=round(segment.avg_logprob, 2),
+                    no_speech_prob=round(segment.no_speech_prob, 2)
+                )
+            else:
+                log.warn(
+                    "Segment REJECTED due to low confidence.",
+                    text=segment.text,
+                    avg_logprob=round(segment.avg_logprob, 2),
+                    no_speech_prob=round(segment.no_speech_prob, 2)
+                )
+
+        full_text = "".join(filtered_segments).strip()
+        
+        return full_text
