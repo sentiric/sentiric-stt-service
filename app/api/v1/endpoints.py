@@ -1,4 +1,4 @@
-import asyncio # YENİ
+import asyncio
 import structlog
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form, WebSocket, WebSocketDisconnect, Request
 from pydantic import BaseModel
@@ -12,6 +12,7 @@ log = structlog.get_logger(__name__)
 
 class TranscriptionResponse(BaseModel):
     text: str
+
 @router.post("/transcribe", response_model=TranscriptionResponse, tags=["Speech-to-Text (Dosya)"])
 async def create_transcription(
     request: Request,
@@ -42,7 +43,6 @@ async def create_transcription(
         log.error("Error during transcription", error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred while processing the audio file.")
 
-
 @router.websocket("/transcribe-stream")
 async def websocket_transcription(websocket: WebSocket, language: Optional[str] = None):
     await websocket.accept()
@@ -53,10 +53,12 @@ async def websocket_transcription(websocket: WebSocket, language: Optional[str] 
     try:
         adapter = get_adapter(websocket)
         if not adapter:
-            await websocket.send_json({"type": "error", "message": "Model is not ready, please try again in a moment."})
-            await websocket.close(code=1011) # 1011 = Internal Error
             log.warn("WebSocket connection rejected because model is not ready.", client=client_info)
-            return
+            try:
+                await websocket.send_json({"type": "error", "message": "Model is not ready, please try again in a moment."})
+            except RuntimeError:
+                pass # Bağlantı zaten kapanmış olabilir
+            return # Fonksiyondan çık
         
         audio_processor = AudioProcessor(adapter=adapter, language=language)
 
@@ -67,12 +69,15 @@ async def websocket_transcription(websocket: WebSocket, language: Optional[str] 
                     yield data
             except WebSocketDisconnect:
                 log.info("WebSocket client disconnected.", client=client_info)
-
-        # Ana transkripsiyon döngüsünü bir asyncio Task olarak başlat
+        
         async def transcribe_loop():
             async for result in audio_processor.transcribe_stream(audio_chunk_generator()):
-                await websocket.send_json(result)
-        
+                try:
+                    await websocket.send_json(result)
+                except RuntimeError:
+                    log.warn("Could not send to a closed WebSocket. Breaking loop.", client=client_info)
+                    break
+
         task = asyncio.create_task(transcribe_loop())
         await task
 
@@ -81,10 +86,10 @@ async def websocket_transcription(websocket: WebSocket, language: Optional[str] 
     except Exception as e:
         log.error("Error in WebSocket main handler", client=client_info, error=str(e), exc_info=True)
     finally:
-        # Bağlantı kapandığında, eğer görev hala çalışıyorsa zorla iptal et.
         if task and not task.done():
             task.cancel()
         
-        if websocket.client_state.name != "DISCONNECTED":
+        # Sadece bağlantı hala açıksa kapatmaya çalış
+        if websocket.client_state.name == "CONNECTED":
             await websocket.close()
         log.info("WebSocket connection resources cleaned up.", client=client_info)
