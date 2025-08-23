@@ -6,13 +6,16 @@ from .adapters.base import BaseSTTAdapter
 
 log = structlog.get_logger(__name__)
 
+# Whisper'ın anlamsız veya tekrar eden token'larını bastırmak için.
+# Bu token ID'leri, modelin sessizlik veya gürültü durumunda ürettiği jenerik metinleri engeller.
+SUPPRESS_TOKENS = [-1, 32331, 41558, 2691, 322, 50257]
+
 class AudioProcessor:
     def __init__(self, adapter: BaseSTTAdapter, language: str | None = None, vad_aggressiveness: int = 3):
         self.adapter = adapter
         self.language = language if language else None
         self.vad = webrtcvad.Vad(vad_aggressiveness)
         self.buffer = bytearray()
-        # VAD 10, 20, 30 ms'lik frame'ler bekler. 16kHz, 16-bit mono için 30ms = 960 bytes
         self.vad_frame_size = 960
         self.speech_frames = bytearray()
         self.is_speaking = False
@@ -27,14 +30,21 @@ class AudioProcessor:
             audio_data = bytes(self.speech_frames)
             self.speech_frames.clear()
 
-            # --- İŞTE NİHAİ DÜZELTME BURADA ---
-            # Ham byte'ları, faster-whisper'ın doğrudan işleyebileceği bir float32 numpy array'ine dönüştür.
-            # Bu, PyAV'ın dosya formatı algılama adımını atlamasını sağlar ve "Invalid Data" hatasını önler.
             audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32767.0
             
-            # Artık adaptörün transcribe metodu byte değil, numpy array almalı.
-            # faster-whisper'ın kendi transcribe metodu bunu destekliyor, biz de doğrudan onu kullanalım.
-            segments, info = self.adapter.model.transcribe(audio_np, language=self.language)
+            # --- YENİ AI AYARLARI ---
+            segments, info = self.adapter.model.transcribe(
+                audio_np, 
+                language=self.language,
+                # no_speech_threshold: Eğer sesin konuşma olma ihtimali bu değerden düşükse, boş metin döndür.
+                # Bu, gürültünün metne çevrilmesini engeller.
+                no_speech_threshold=0.6,
+                # log_prob_threshold: Ortalama log olasılığı bu değerin altındaysa, segmentleri atla.
+                # Bu, yüksek derecede anlamsız veya halüsinasyon içeren çıktıları filtreler.
+                log_prob_threshold=-1.0,
+                # suppress_tokens: Belirtilen token'ların çıktıda görünmesini engelle.
+                suppress_tokens=SUPPRESS_TOKENS
+            )
             final_text = "".join(s.text for s in segments).strip()
 
             if final_text:
@@ -55,6 +65,7 @@ class AudioProcessor:
             return {"type": "error", "message": "Transcription processing error."}
         return None
 
+    # ... transcribe_stream metodu aynı kalıyor ...
     async def transcribe_stream(self, audio_chunk_generator: AsyncGenerator[bytes, None]) -> AsyncGenerator[dict, None]:
         log.info("Starting audio stream transcription", language=self.language or "auto")
         
@@ -66,7 +77,6 @@ class AudioProcessor:
                 self.buffer = self.buffer[self.vad_frame_size:]
 
                 try:
-                    # Ses verisinin 16000Hz, 16-bit mono PCM olduğu varsayılır.
                     is_speech = self.vad.is_speech(frame, 16000)
                 except Exception:
                     is_speech = False
@@ -84,7 +94,6 @@ class AudioProcessor:
                         self.is_speaking = False
                         self.silent_chunks = 0
 
-        # Akış bittiğinde buffer'da kalan son veriyi de işle
         final_result = await self._process_final_chunk()
         if final_result:
             yield final_result
