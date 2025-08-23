@@ -10,18 +10,19 @@ class AudioProcessor:
     def __init__(self, adapter: BaseSTTAdapter, language: str | None = None, vad_aggressiveness: int = 3):
         self.adapter = adapter
         self.language = language if language else None
-        # --- DEĞİŞİKLİK: Agresiflik seviyesini 3'e (en yüksek) çıkarıyoruz ---
-        # Bu, VAD'ın sadece net konuşmaları algılamasını sağlar ve gürültüyü filtreler.
         self.vad = webrtcvad.Vad(vad_aggressiveness)
         self.buffer = bytearray()
         self.vad_frame_size = 960
         self.speech_frames = bytearray()
         self.is_speaking = False
         self.silent_chunks = 0
+        # Konuşma olarak kabul edilecek minimum frame sayısı. (örn, ~150ms)
+        self.min_speech_frames = 5 
 
-    # ... (geri kalan kod aynı kalabilir, çünkü en büyük etki VAD ayarından gelecek) ...
     async def _process_final_chunk(self):
-        if not self.speech_frames:
+        # Eğer birikmiş konuşma çok kısaysa, bunu gürültü olarak kabul et ve atla.
+        if len(self.speech_frames) < self.vad_frame_size * self.min_speech_frames:
+            self.speech_frames.clear()
             return None
         
         try:
@@ -29,7 +30,6 @@ class AudioProcessor:
             self.speech_frames.clear()
             
             audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32767.0
-
             final_text = self.adapter.transcribe(audio_np, self.language)
 
             if final_text:
@@ -61,14 +61,17 @@ class AudioProcessor:
                     self.is_speaking = True
                     self.silent_chunks = 0
                 elif self.is_speaking:
+                    # Konuşma bittiğinde sessizlik saymaya başla
                     self.silent_chunks += 1
-                    if self.silent_chunks > 15:
+                    # ~750ms'lik bir sessizlikten sonra transkripsiyonu tetikle
+                    if self.silent_chunks > 25:
                         final_result = await self._process_final_chunk()
                         if final_result:
                             yield final_result
                         self.is_speaking = False
                         self.silent_chunks = 0
 
+        # Akış bittiğinde son parçayı da işle
         final_result = await self._process_final_chunk()
         if final_result:
             yield final_result

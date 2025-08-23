@@ -8,11 +8,12 @@ from typing import Optional, Union
 
 log = structlog.get_logger(__name__)
 
-SUPPRESS_TOKENS = [-1] # Sadece -1'i bastırmak genellikle en güvenlisidir.
+SUPPRESS_TOKENS = [-1]
 
 class FasterWhisperAdapter(BaseSTTAdapter):
     
     def __init__(self):
+        # ... __init__ kodu aynı ...
         self.model: WhisperModel | None = None
         self.model_loaded: bool = False
         log.info(
@@ -40,12 +41,9 @@ class FasterWhisperAdapter(BaseSTTAdapter):
             
         effective_language = language if language else None
         
-        # Girişin byte mı numpy mı olduğunu kontrol et
         if isinstance(audio_input, bytes):
-            # Dosya yüklemesinden gelen byte'lar için (WAV, MP3 vb. başlık içerir)
             input_for_model = io.BytesIO(audio_input)
         elif isinstance(audio_input, np.ndarray):
-            # Akıştan gelen ham PCM verisi için
             input_for_model = audio_input
         else:
             raise TypeError("Unsupported audio input type. Must be bytes or numpy.ndarray.")
@@ -54,9 +52,10 @@ class FasterWhisperAdapter(BaseSTTAdapter):
             input_for_model, 
             beam_size=5, 
             language=effective_language,
-            no_speech_threshold=0.6,
-            log_prob_threshold=-1.0,
-            suppress_tokens=SUPPRESS_TOKENS
+            # --- YENİ STRATEJİ ---
+            # Whisper'ın kendi VAD filtresini etkinleştir. Bu, gürültülü segmentleri atar.
+            vad_filter=True,
+            vad_parameters=dict(min_silence_duration_ms=500)
         )
         
         log.info(
