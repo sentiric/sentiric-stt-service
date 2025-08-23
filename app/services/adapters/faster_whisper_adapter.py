@@ -30,12 +30,17 @@ class FasterWhisperAdapter(BaseSTTAdapter):
                 raise e
 
     def transcribe(self, audio_bytes: bytes, language: Optional[str] = None) -> str:
+        # --- YENİ DÜZELTME: Gelen dil parametresini temizle ---
+        # Eğer UI'dan veya API'den boş bir string gelirse, bunu 'None' olarak ayarla
+        # ki faster-whisper otomatik dil tespiti yapabilsin.
+        effective_language = language if language else None
+        
         audio_stream = io.BytesIO(audio_bytes)
         
         segments, info = self._model.transcribe(
             audio_stream, 
             beam_size=5, 
-            language=language
+            language=effective_language # Temizlenmiş parametreyi kullan
         )
         
         log.info(

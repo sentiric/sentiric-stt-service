@@ -44,4 +44,8 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY ./app ./app
 
 EXPOSE 5001
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5001"]""
+
+# --- DÜZELTME: CMD'yi ENTRYPOINT ve CMD olarak ayırıyoruz ---
+# Bu, komutun Docker tarafından her zaman doğru yorumlanmasını sağlar.
+ENTRYPOINT ["uvicorn"]
+CMD ["app.main:app", "--host", "0.0.0.0", "--port", "5001"]
