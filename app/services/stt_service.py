@@ -1,4 +1,4 @@
-import asyncio # YENİ
+import asyncio
 from app.core.config import settings
 import structlog
 from .adapters.base import BaseSTTAdapter
@@ -14,33 +14,27 @@ def register_adapter(name: str, adapter_class: Type[BaseSTTAdapter]):
     log.debug("STT adapter registered", adapter_name=name)
 
 async def load_adapter():
-    """
-    Modeli ve adaptörü asenkron olarak yükler.
-    Bu, uygulamanın ana döngüsünü bloke etmez.
-    """
+    """Modeli ve adaptörü asenkron olarak yükler."""
     global _loaded_adapter_instance
     if _loaded_adapter_instance is None:
         adapter_name = settings.STT_SERVICE_ADAPTER
         log.info(f"Starting background loading of STT adapter: {adapter_name}")
         
-        # CPU-yoğun işlemi arka plan thread'ine taşı
         loop = asyncio.get_event_loop()
         
         try:
             def sync_load():
                 adapter_class = _ADAPTERS.get(adapter_name)
                 if not adapter_class:
-                    log.error(f"Adapter not found: {adapter_name}. Registered adapters: {list(_ADAPTERS.keys())}")
                     raise ValueError(f"Invalid STT adapter: {adapter_name}")
+                # Bu çağrı artık __init__ içinde modeli yükleyecek
                 return adapter_class()
 
             _loaded_adapter_instance = await loop.run_in_executor(None, sync_load)
-            log.info(f"STT adapter '{adapter_name}' loaded successfully in background.")
+            log.info(f"STT adapter '{adapter_name}' loaded and ready in background.")
         except Exception as e:
-            log.error(f"Failed to load adapter '{adapter_name}' in background", error=str(e), exc_info=True)
-            # Yükleme başarısız olursa, bir sonraki deneme için instance'ı None bırak
-            _loaded_adapter_instance = None
-
+            log.error(f"FATAL: Failed to load adapter '{adapter_name}' in background", error=str(e), exc_info=True)
+            _loaded_adapter_instance = None # Başarısızlık durumunda None olarak ayarla
 
 def get_adapter() -> Optional[BaseSTTAdapter]:
     return _loaded_adapter_instance
