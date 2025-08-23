@@ -1,44 +1,93 @@
-document.getElementById('transcribe-form').addEventListener('submit', async function(event) {
-    event.preventDefault();
+// ... (mevcut dosya yükleme kodu) ...
 
-    const form = event.target;
-    const formData = new FormData(form);
-    
-    const resultContainer = document.getElementById('result-container');
-    const resultText = document.getElementById('result-text');
-    const errorMessage = document.getElementById('error-message');
-    const spinner = document.getElementById('spinner');
-    const submitBtn = document.getElementById('submit-btn');
+// YENİ: Gerçek Zamanlı Transkripsiyon Mantığı
+const recordBtn = document.getElementById('record-btn');
+const statusText = document.getElementById('status-text');
+const streamResultContainer = document.getElementById('stream-result-container');
+const streamResultText = document.getElementById('stream-result-text');
+const finalResultText = document.getElementById('final-result-text');
 
-    // Reset UI
-    resultContainer.classList.remove('hidden');
-    resultText.textContent = '';
-    errorMessage.classList.add('hidden');
-    spinner.classList.remove('hidden');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'İşleniyor...';
+let websocket;
+let mediaRecorder;
+let isRecording = false;
 
-    try {
-        const response = await fetch('/api/v1/transcribe', {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        resultText.textContent = data.text;
-        
-    } catch (error) {
-        console.error('Transcription error:', error);
-        errorMessage.textContent = `Hata: ${error.message}`;
-        errorMessage.classList.remove('hidden');
-    } finally {
-        spinner.classList.add('hidden');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Metne Çevir';
+recordBtn.addEventListener('click', () => {
+    if (isRecording) {
+        stopRecording();
+    } else {
+        startRecording();
     }
 });
+
+function startRecording() {
+    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+        .then(stream => {
+            isRecording = true;
+            recordBtn.textContent = 'Kaydı Durdur';
+            statusText.textContent = 'Durum: Kaydediliyor...';
+            streamResultContainer.classList.remove('hidden');
+            streamResultText.textContent = '';
+            finalResultText.textContent = '';
+            
+            const wsUrl = `ws://${window.location.host}/api/v1/transcribe-stream`;
+            websocket = new WebSocket(wsUrl);
+
+            websocket.onopen = () => {
+                statusText.textContent = 'Durum: Bağlantı kuruldu, konuşun...';
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0 && websocket.readyState === WebSocket.OPEN) {
+                        websocket.send(event.data);
+                    }
+                };
+                mediaRecorder.start(250); // Her 250ms'de bir veri gönder
+            };
+
+            websocket.onmessage = event => {
+                const result = JSON.parse(event.data);
+                if (result.type === 'partial') {
+                    streamResultText.textContent = result.text;
+                } else if (result.type === 'final') {
+                    finalResultText.textContent += result.text + ' ';
+                    streamResultText.textContent = ''; // Geçici metni temizle
+                } else if (result.type === 'error') {
+                    statusText.textContent = `Hata: ${result.message}`;
+                }
+            };
+
+            websocket.onclose = () => {
+                statusText.textContent = 'Durum: Bağlantı kapandı.';
+                stopRecording(stream);
+            };
+            
+            websocket.onerror = (error) => {
+                console.error('WebSocket Error:', error);
+                statusText.textContent = 'Hata: WebSocket bağlantı hatası.';
+            };
+
+        })
+        .catch(err => {
+            console.error('Mikrofon erişim hatası:', err);
+            statusText.textContent = 'Hata: Mikrofon erişimi reddedildi.';
+        });
+}
+
+function stopRecording(stream) {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+    }
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.close();
+    }
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+    }
+    isRecording = false;
+    recordBtn.textContent = 'Kaydı Başlat';
+    statusText.textContent = 'Durum: Beklemede';
+}
+
+// Sekme yönetimi
+function openTab(evt, tabName) {
+    // ... (sekme değiştirme JS kodu) ...
+}

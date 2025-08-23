@@ -4,25 +4,28 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sentiric-stt-service"
-version = "0.1.0"
-description = "Sentiric STT Service for speech-to-text transcription."
+version = "0.2.0" # Sürüm yükseltiyoruz
+description = "High-performance, streaming STT service for the Sentiric ecosystem."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi",
     "uvicorn[standard]",
+    "websockets", # YENİ: WebSocket desteği için
     "python-multipart",
     "pydantic",
     "pydantic-settings",
     "python-dotenv",
     "typing-extensions",
-    "structlog", # Yapılandırılmış loglama için
-    "colorama",  # Geliştirme ortamında renkli loglar için
+    "structlog",
+    "colorama",
     "prometheus-fastapi-instrumentator",
     "faster-whisper",
     "ctranslate2>=3.20.0,<4.0.0",
     "soundfile",
-    "jinja2", # YENİ: Test arayüzü için şablon motoru
+    "jinja2",
+    "numpy", # YENİ: Ses verisi işleme için gerekli
+    "webrtcvad", # YENİ: Ses Aktivite Tespiti (VAD) için
 ]
 
 [project.optional-dependencies]
@@ -30,7 +33,6 @@ dev = [
     "pytest",
     "pytest-cov",
     "httpx",
-    "numpy",
     "pytest-asyncio",
 ]
 
