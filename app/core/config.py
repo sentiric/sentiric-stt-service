@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     # .env'de: STT_SERVICE_TARGET_SAMPLE_RATE
     STT_SERVICE_TARGET_SAMPLE_RATE: int = Field(16000, validation_alias="STT_SERVICE_TARGET_SAMPLE_RATE")
 
+    # --- YENİ: Yapılandırılabilir Güven Filtresi Ayarları ---
+    STT_SERVICE_LOGPROB_THRESHOLD: float = Field(-1.0, validation_alias="STT_SERVICE_LOGPROB_THRESHOLD")
+    STT_SERVICE_NO_SPEECH_THRESHOLD: float = Field(0.75, validation_alias="STT_SERVICE_NO_SPEECH_THRESHOLD")
+    
     model_config = SettingsConfigDict(
         # Pydantic, değerleri doğrudan ortam değişkenlerinden okuyacak.
         # env_file=None, # Bu satırı tamamen silebiliriz, varsayılanı zaten budur

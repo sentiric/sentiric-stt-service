@@ -8,15 +8,6 @@ from typing import Optional, Union
 
 log = structlog.get_logger(__name__)
 
-# --- GÜVEN EŞİKLERİ (Yapılandırılabilir olabilir) ---
-# Ortalama log olasılığı bu değerden düşük olan segmentleri atla.
-# -1.0 çok gevşek, -0.5 daha sıkı bir filtredir.
-LOGPROB_THRESHOLD = -0.6
-
-# Konuşma olmama olasılığı bu değerden yüksek olan segmentleri atla.
-# 0.90, %90 ihtimalle konuşma değil demek.
-NO_SPEECH_PROB_THRESHOLD = 0.75
-
 class FasterWhisperAdapter(BaseSTTAdapter):
     
     def __init__(self):
@@ -54,12 +45,12 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         else:
             raise TypeError("Unsupported audio input type. Must be bytes or numpy.ndarray.")
 
-        # --- YENİ ve DOĞRU YÖNTEM: Olasılıkları alarak transkripsiyon yap ---
+        # Transkripsiyonu, yapılandırılabilir VAD parametreleri ile yap
         segments, info = self.model.transcribe(
             input_for_model, 
             beam_size=5, 
             language=effective_language,
-            vad_filter=True, # Whisper'ın kendi VAD'ını kullanalım
+            vad_filter=True,
             vad_parameters=dict(min_silence_duration_ms=500),
         )
         
@@ -71,23 +62,22 @@ class FasterWhisperAdapter(BaseSTTAdapter):
 
         filtered_segments = []
         for segment in segments:
-            # Segmentin güvenilir olup olmadığını kontrol et
-            is_reliable = (segment.avg_logprob > LOGPROB_THRESHOLD) and (segment.no_speech_prob < NO_SPEECH_PROB_THRESHOLD)
+            # --- DEĞİŞİKLİK: Eşikleri sabit değerler yerine settings'den al ---
+            is_reliable = (
+                segment.avg_logprob > settings.STT_SERVICE_LOGPROB_THRESHOLD and 
+                segment.no_speech_prob < settings.STT_SERVICE_NO_SPEECH_THRESHOLD
+            )
             
             if is_reliable:
                 filtered_segments.append(segment.text)
-                log.debug(
-                    "Segment kept.", 
-                    text=segment.text,
-                    avg_logprob=round(segment.avg_logprob, 2),
-                    no_speech_prob=round(segment.no_speech_prob, 2)
-                )
             else:
                 log.warn(
                     "Segment REJECTED due to low confidence.",
                     text=segment.text,
                     avg_logprob=round(segment.avg_logprob, 2),
-                    no_speech_prob=round(segment.no_speech_prob, 2)
+                    no_speech_prob=round(segment.no_speech_prob, 2),
+                    logprob_threshold=settings.STT_SERVICE_LOGPROB_THRESHOLD,
+                    no_speech_threshold=settings.STT_SERVICE_NO_SPEECH_THRESHOLD
                 )
 
         full_text = "".join(filtered_segments).strip()
