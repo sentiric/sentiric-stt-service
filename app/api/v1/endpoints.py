@@ -55,7 +55,8 @@ async def websocket_transcription(
     websocket: WebSocket, 
     language: Optional[str] = None,
     logprob_threshold: Optional[float] = None,
-    no_speech_threshold: Optional[float] = None
+    no_speech_threshold: Optional[float] = None,
+    vad_aggressiveness: Optional[int] = None # Yeni parametre eklendi
 ):
     await websocket.accept()
     client_info = f"{websocket.client.host}:{websocket.client.port}"
@@ -72,10 +73,10 @@ async def websocket_transcription(
                 pass 
             return
         
-        # --- İŞTE DÜZELTME BURADA ---
         audio_processor = AudioProcessor(
             adapter=adapter, 
             language=language,
+            vad_aggressiveness=vad_aggressiveness, # Yeni parametre AudioProcessor'a geçirildi
             logprob_threshold=logprob_threshold,
             no_speech_threshold=no_speech_threshold
         )

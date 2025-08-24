@@ -10,16 +10,22 @@ class AudioProcessor:
     def __init__(self, 
                  adapter: BaseSTTAdapter, 
                  language: str | None = None, 
-                 vad_aggressiveness: int = 3,
+                 vad_aggressiveness: Optional[int] = None, # Artık opsiyonel
                  logprob_threshold: Optional[float] = None,
                  no_speech_threshold: Optional[float] = None):
         self.adapter = adapter
         self.language = language if language else None
-        self.vad = webrtcvad.Vad(vad_aggressiveness)
+        
+        # Eğer dışarıdan geçerli bir VAD seviyesi gelmezse (None veya 0,1,2,3 dışında bir şey),
+        # varsayılan olarak en hoşgörülü olan 1'i kullan. Bu, SIP çağrıları için en güvenli ayardır.
+        effective_vad_level = vad_aggressiveness if vad_aggressiveness in [0, 1, 2, 3] else 1
+        self.vad = webrtcvad.Vad(effective_vad_level)
+        log.info("AudioProcessor VAD level set", level=effective_vad_level, source="URL" if vad_aggressiveness is not None else "Default")
+
         self.logprob_threshold = logprob_threshold
         self.no_speech_threshold = no_speech_threshold
         self.buffer = bytearray()
-        self.vad_frame_size = 960
+        self.vad_frame_size = 960  # 30ms @ 16kHz
         self.speech_frames = bytearray()
         self.is_speaking = False
         self.silent_chunks = 0
@@ -28,8 +34,7 @@ class AudioProcessor:
     async def _process_final_chunk(self):
         if len(self.speech_frames) < self.vad_frame_size * self.min_speech_frames:
             self.speech_frames.clear()
-            # YENİ: Çok kısa sesler için bile boş bir final mesajı gönder
-            log.info("Speech frames too short, sending empty final transcript.")
+            log.info("Speech frames too short to process, sending empty final transcript.")
             return {"type": "final", "text": ""}
         
         try:
@@ -45,9 +50,6 @@ class AudioProcessor:
                 no_speech_threshold=self.no_speech_threshold
             )
 
-            # --- İŞTE NİHAİ DÜZELTME ---
-            # Metin boş olsa bile, işlemin bittiğini bildirmek için bir "final" mesajı gönder.
-            # Bu, agent-service'in zaman aşımına uğramasını engeller.
             log.info("Final transcription segment processed", text_length=len(final_text))
             return {"type": "final", "text": final_text}
                 
@@ -76,13 +78,16 @@ class AudioProcessor:
                     self.silent_chunks = 0
                 elif self.is_speaking:
                     self.silent_chunks += 1
-                    if self.silent_chunks > 25:
+                    # Sessizlik süresini biraz artıralım ki kısa duraksamalarda cümle bölünmesin
+                    if self.silent_chunks > 35: # Yaklaşık 1 saniye sessizlik
                         final_result = await self._process_final_chunk()
                         if final_result:
                             yield final_result
                         self.is_speaking = False
                         self.silent_chunks = 0
 
-        final_result = await self._process_final_chunk()
-        if final_result:
-            yield final_result
+        # Akış bittiğinde tamponda kalan son konuşmayı da işle
+        if self.is_speaking or len(self.speech_frames) > 0:
+            final_result = await self._process_final_chunk()
+            if final_result:
+                yield final_result
