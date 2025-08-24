@@ -7,7 +7,6 @@ from .base import BaseSTTAdapter
 from typing import Optional, Union
 
 log = structlog.get_logger(__name__)
-
 class FasterWhisperAdapter(BaseSTTAdapter):
     
     def __init__(self):
@@ -31,13 +30,15 @@ class FasterWhisperAdapter(BaseSTTAdapter):
             self.model_loaded = False
             log.error("Failed to load FasterWhisperAdapter model", error=str(e), exc_info=True)
             raise e
-
+    
+    # transcribe metodunu GÜNCELLE
     def transcribe(
         self, 
         audio_input: Union[bytes, np.ndarray], 
         language: Optional[str] = None,
         logprob_threshold: Optional[float] = None,
-        no_speech_threshold: Optional[float] = None
+        no_speech_threshold: Optional[float] = None,
+        vad_filter: bool = False # YENİ parametre
     ) -> str:
         if not self.model_loaded or self.model is None:
             raise RuntimeError("Model is not available for transcription.")
@@ -61,12 +62,14 @@ class FasterWhisperAdapter(BaseSTTAdapter):
             no_speech_threshold=final_no_speech_threshold
         )
 
+        
         segments, info = self.model.transcribe(
             input_for_model, 
             beam_size=5, 
             language=effective_language,
-            vad_filter=True,
-            vad_parameters=dict(min_silence_duration_ms=500),
+            # VAD filtresini parametreye göre dinamik olarak AÇ/KAPAT
+            vad_filter=vad_filter,
+            vad_parameters=dict(min_silence_duration_ms=700), # Sessizlik süresini biraz artıralım
         )
         
         log.info(
