@@ -13,6 +13,20 @@
             <p>Dosya yükleyerek veya mikrofonunuzu kullanarak servisi test edin.</p>
         </header>
         
+        <div class="settings-panel">
+            <h3>İnce Ayar Filtreleri (Canlı Değiştirilebilir)</h3>
+            <div class="form-group-inline">
+                <div class="form-group">
+                    <label for="logprob-threshold">Log-Prob Eşiği</label>
+                    <input type="number" id="logprob-threshold" step="0.1" value="-1.0" title="Daha düşük değerler (örn: -1.5) daha gevşek, daha yüksek değerler (örn: -0.5) daha sıkı filtreleme yapar.">
+                </div>
+                <div class="form-group">
+                    <label for="no-speech-threshold">No-Speech Eşiği</label>
+                    <input type="number" id="no-speech-threshold" step="0.05" value="0.75" title="Daha yüksek değerler (örn: 0.9) daha fazla gürültüyü, daha düşük değerler (örn: 0.6) daha az gürültüyü filtreler.">
+                </div>
+            </div>
+        </div>
+
         <div class="tabs">
             <button class="tab-link active" data-tab="file-upload">Dosya Yükleme</button>
             <button class="tab-link" data-tab="real-time">Gerçek Zamanlı</button>
@@ -57,6 +71,7 @@
                 </div>
             </div>
         </main>
+        
         <footer>
             <p>Sentiric "İletişim İşletim Sistemi"</p>
         </footer>

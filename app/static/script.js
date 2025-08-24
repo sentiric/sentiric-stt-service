@@ -21,6 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const form = event.target;
         const formData = new FormData(form);
+        
+        const logprobThreshold = document.getElementById('logprob-threshold').value;
+        const noSpeechThreshold = document.getElementById('no-speech-threshold').value;
+        formData.append('logprob_threshold', logprobThreshold);
+        formData.append('no_speech_threshold', noSpeechThreshold);
+
         const resultContainer = document.getElementById('file-result-container');
         const resultText = document.getElementById('file-result-text');
         const errorMessage = document.getElementById('file-error-message');
@@ -68,10 +74,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const languageStreamInput = document.getElementById('language-stream');
 
     let websocket;
-    let mediaRecorder;
     let audioContext;
     let processor;
     let isRecording = false;
+    let mediaStream;
 
     recordBtn.addEventListener('click', () => {
         if (isRecording) {
@@ -83,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function startRecording() {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
             
             isRecording = true;
             recordBtn.textContent = '🛑 Kaydı Durdur';
@@ -93,20 +99,30 @@ document.addEventListener('DOMContentLoaded', () => {
             streamErrorMessage.classList.add('hidden');
             finalResultText.textContent = '';
             
+            const logprobThreshold = document.getElementById('logprob-threshold').value;
+            const noSpeechThreshold = document.getElementById('no-speech-threshold').value;
             const language = languageStreamInput.value.trim();
-            const wsUrl = `ws://${window.location.host}/api/v1/transcribe-stream${language ? `?language=${language}` : ''}`;
+            
+            const params = new URLSearchParams();
+            if (language) params.append('language', language);
+            if (logprobThreshold) params.append('logprob_threshold', logprobThreshold);
+            if (noSpeechThreshold) params.append('no_speech_threshold', noSpeechThreshold);
+
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${window.location.host}/api/v1/transcribe-stream?${params.toString()}`;
             websocket = new WebSocket(wsUrl);
 
             websocket.onopen = () => {
                 statusText.textContent = 'Durum: Bağlantı kuruldu, konuşabilirsiniz...';
                 audioContext = new AudioContext({ sampleRate: 16000 });
-                const source = audioContext.createMediaStreamSource(stream);
+                const source = audioContext.createMediaStreamSource(mediaStream);
                 processor = audioContext.createScriptProcessor(1024, 1, 1);
 
                 source.connect(processor);
                 processor.connect(audioContext.destination);
 
                 processor.onaudioprocess = (e) => {
+                    if (!isRecording) return;
                     const inputData = e.inputBuffer.getChannelData(0);
                     const int16Data = new Int16Array(inputData.length);
                     for (let i = 0; i < inputData.length; i++) {
@@ -130,14 +146,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             websocket.onclose = () => {
                 statusText.textContent = 'Durum: Bağlantı kapandı.';
-                if(isRecording) stopRecording(stream);
+                if(isRecording) stopRecording();
             };
             
             websocket.onerror = (error) => {
                 console.error('WebSocket Hatası:', error);
                 streamErrorMessage.textContent = 'Hata: WebSocket bağlantı hatası.';
                 streamErrorMessage.classList.remove('hidden');
-                if(isRecording) stopRecording(stream);
+                if(isRecording) stopRecording();
             };
 
         } catch (err) {
@@ -146,7 +162,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function stopRecording(stream) {
+    function stopRecording() {
+        if (!isRecording) return;
+        isRecording = false;
+
         if (processor) {
             processor.disconnect();
             processor = null;
@@ -158,11 +177,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (websocket && websocket.readyState === WebSocket.OPEN) {
             websocket.close();
         }
-        if(stream) {
-             stream.getTracks().forEach(track => track.stop());
+        if(mediaStream) {
+             mediaStream.getTracks().forEach(track => track.stop());
+             mediaStream = null;
         }
         
-        isRecording = false;
         recordBtn.textContent = '🎤 Kaydı Başlat';
         recordBtn.classList.remove('recording');
         statusText.textContent = 'Durum: Beklemede';

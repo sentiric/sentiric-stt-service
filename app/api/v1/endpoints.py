@@ -17,7 +17,9 @@ class TranscriptionResponse(BaseModel):
 async def create_transcription(
     request: Request,
     language: Optional[str] = Form(None), 
-    audio_file: UploadFile = File(...)
+    audio_file: UploadFile = File(...),
+    logprob_threshold: Optional[float] = Form(None),
+    no_speech_threshold: Optional[float] = Form(None)
 ):
     if not (audio_file.content_type and audio_file.content_type.startswith("audio/")):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload an audio file.")
@@ -31,7 +33,12 @@ async def create_transcription(
         resampled_audio_bytes = resample_audio(audio_bytes)
         log.info("Transcription request received", filename=audio_file.filename, language=language or "auto", size_kb=round(len(audio_bytes) / 1024, 2))
         
-        result_text = adapter.transcribe(resampled_audio_bytes, language)
+        result_text = adapter.transcribe(
+            resampled_audio_bytes, 
+            language,
+            logprob_threshold=logprob_threshold,
+            no_speech_threshold=no_speech_threshold
+        )
         
         log.info("Transcription successful", text_length=len(result_text))
         return {"text": result_text}
@@ -44,7 +51,12 @@ async def create_transcription(
         raise HTTPException(status_code=500, detail="An error occurred while processing the audio file.")
 
 @router.websocket("/transcribe-stream")
-async def websocket_transcription(websocket: WebSocket, language: Optional[str] = None):
+async def websocket_transcription(
+    websocket: WebSocket, 
+    language: Optional[str] = None,
+    logprob_threshold: Optional[float] = None,
+    no_speech_threshold: Optional[float] = None
+):
     await websocket.accept()
     client_info = f"{websocket.client.host}:{websocket.client.port}"
     log.info("WebSocket connection established", client=client_info, language=language)
@@ -57,10 +69,15 @@ async def websocket_transcription(websocket: WebSocket, language: Optional[str] 
             try:
                 await websocket.send_json({"type": "error", "message": "Model is not ready, please try again in a moment."})
             except RuntimeError:
-                pass # Bağlantı zaten kapanmış olabilir
-            return # Fonksiyondan çık
+                pass 
+            return
         
-        audio_processor = AudioProcessor(adapter=adapter, language=language)
+        audio_processor = AudioProcessor(
+            adapter=adapter, 
+            language=language,
+            logprob_threshold=logprob_threshold,
+            no_speech_threshold=no_speech_threshold
+        )
 
         async def audio_chunk_generator():
             try:
@@ -89,7 +106,9 @@ async def websocket_transcription(websocket: WebSocket, language: Optional[str] 
         if task and not task.done():
             task.cancel()
         
-        # Sadece bağlantı hala açıksa kapatmaya çalış
         if websocket.client_state.name == "CONNECTED":
-            await websocket.close()
+            try:
+                await websocket.close()
+            except RuntimeError:
+                pass
         log.info("WebSocket connection resources cleaned up.", client=client_info)

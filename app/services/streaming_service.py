@@ -1,26 +1,31 @@
 import numpy as np
 import structlog
 import webrtcvad
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 from .adapters.base import BaseSTTAdapter
 
 log = structlog.get_logger(__name__)
 
 class AudioProcessor:
-    def __init__(self, adapter: BaseSTTAdapter, language: str | None = None, vad_aggressiveness: int = 3):
+    def __init__(self, 
+                 adapter: BaseSTTAdapter, 
+                 language: str | None = None, 
+                 vad_aggressiveness: int = 3,
+                 logprob_threshold: Optional[float] = None,
+                 no_speech_threshold: Optional[float] = None):
         self.adapter = adapter
         self.language = language if language else None
         self.vad = webrtcvad.Vad(vad_aggressiveness)
+        self.logprob_threshold = logprob_threshold
+        self.no_speech_threshold = no_speech_threshold
         self.buffer = bytearray()
         self.vad_frame_size = 960
         self.speech_frames = bytearray()
         self.is_speaking = False
         self.silent_chunks = 0
-        # Konuşma olarak kabul edilecek minimum frame sayısı. (örn, ~150ms)
         self.min_speech_frames = 5 
 
     async def _process_final_chunk(self):
-        # Eğer birikmiş konuşma çok kısaysa, bunu gürültü olarak kabul et ve atla.
         if len(self.speech_frames) < self.vad_frame_size * self.min_speech_frames:
             self.speech_frames.clear()
             return None
@@ -30,7 +35,13 @@ class AudioProcessor:
             self.speech_frames.clear()
             
             audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32767.0
-            final_text = self.adapter.transcribe(audio_np, self.language)
+            
+            final_text = self.adapter.transcribe(
+                audio_np, 
+                self.language,
+                logprob_threshold=self.logprob_threshold,
+                no_speech_threshold=self.no_speech_threshold
+            )
 
             if final_text:
                 log.info("Final transcription segment generated", text_length=len(final_text))
@@ -61,9 +72,7 @@ class AudioProcessor:
                     self.is_speaking = True
                     self.silent_chunks = 0
                 elif self.is_speaking:
-                    # Konuşma bittiğinde sessizlik saymaya başla
                     self.silent_chunks += 1
-                    # ~750ms'lik bir sessizlikten sonra transkripsiyonu tetikle
                     if self.silent_chunks > 25:
                         final_result = await self._process_final_chunk()
                         if final_result:
@@ -71,7 +80,6 @@ class AudioProcessor:
                         self.is_speaking = False
                         self.silent_chunks = 0
 
-        # Akış bittiğinde son parçayı da işle
         final_result = await self._process_final_chunk()
         if final_result:
             yield final_result

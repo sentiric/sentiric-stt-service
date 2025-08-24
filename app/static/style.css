@@ -38,6 +38,32 @@ header p {
     font-size: 1rem;
 }
 
+.settings-panel {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+}
+
+.settings-panel h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #495057;
+    text-align: center;
+}
+
+.form-group-inline {
+    display: flex;
+    gap: 20px;
+    justify-content: space-around;
+}
+
+.form-group-inline .form-group {
+    flex: 1;
+    min-width: 0;
+}
+
 .tabs {
     display: flex;
     border-bottom: 1px solid #dee2e6;
@@ -84,7 +110,7 @@ label {
     color: #495057;
 }
 
-input[type="file"], input[type="text"] {
+input[type="file"], input[type="text"], input[type="number"] {
     width: 100%;
     padding: 12px;
     border: 1px solid #ced4da;
@@ -92,7 +118,7 @@ input[type="file"], input[type="text"] {
     box-sizing: border-box;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
-input[type="file"]:focus, input[type="text"]:focus {
+input[type="file"]:focus, input[type="text"]:focus, input[type="number"]:focus {
     outline: none;
     border-color: #3498db;
     box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
