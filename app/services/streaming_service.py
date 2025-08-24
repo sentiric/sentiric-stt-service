@@ -28,7 +28,9 @@ class AudioProcessor:
     async def _process_final_chunk(self):
         if len(self.speech_frames) < self.vad_frame_size * self.min_speech_frames:
             self.speech_frames.clear()
-            return None
+            # YENİ: Çok kısa sesler için bile boş bir final mesajı gönder
+            log.info("Speech frames too short, sending empty final transcript.")
+            return {"type": "final", "text": ""}
         
         try:
             audio_data = bytes(self.speech_frames)
@@ -42,17 +44,16 @@ class AudioProcessor:
                 logprob_threshold=self.logprob_threshold,
                 no_speech_threshold=self.no_speech_threshold
             )
-            
-            log.info("threshold", logprob_threshold=self.logprob_threshold,no_speech_threshold=self.no_speech_threshold )
 
-            if final_text:
-                log.info("Final transcription segment generated", text_length=len(final_text))
-                return {"type": "final", "text": final_text}
+            # --- İŞTE NİHAİ DÜZELTME ---
+            # Metin boş olsa bile, işlemin bittiğini bildirmek için bir "final" mesajı gönder.
+            # Bu, agent-service'in zaman aşımına uğramasını engeller.
+            log.info("Final transcription segment processed", text_length=len(final_text))
+            return {"type": "final", "text": final_text}
                 
         except Exception as e:
             log.error("Error during final transcription chunk processing", error=str(e), exc_info=True)
             return {"type": "error", "message": "Transcription processing error."}
-        return None
 
     async def transcribe_stream(self, audio_chunk_generator: AsyncGenerator[bytes, None]) -> AsyncGenerator[dict, None]:
         log.info("Starting audio stream transcription", language=self.language or "auto")
