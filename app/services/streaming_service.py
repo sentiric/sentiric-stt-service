@@ -42,6 +42,8 @@ class AudioProcessor:
                 logprob_threshold=self.logprob_threshold,
                 no_speech_threshold=self.no_speech_threshold
             )
+            
+            log.info("threshold", logprob_threshold=self.logprob_threshold,no_speech_threshold=self.no_speech_threshold )
 
             if final_text:
                 log.info("Final transcription segment generated", text_length=len(final_text))
