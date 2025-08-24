@@ -63,8 +63,8 @@ Canlı bir telefon görüşmesi, bir web arayüzündeki mikrofon girişi veya `m
 *   **Protokol:** `WebSocket`
 *   **URL Parametreleri (isteğe bağlı):**
     *   `?language=tr`
-    *   `?logprob_threshold=-0.8`
-    *   `?no_speech_threshold=0.8`
+    *   `?logprob_threshold=-1.0`
+    *   `?no_speech_threshold=0.75`
 *   **Beklenen Girdi (İstemciden Sunucuya):**
     *   Sürekli bir **binary** mesaj akışı.
     *   Ses formatı **MUTLAKA** `16kHz, 16-bit, mono, ham PCM` olmalıdır.

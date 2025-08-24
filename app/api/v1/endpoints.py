@@ -72,6 +72,7 @@ async def websocket_transcription(
                 pass 
             return
         
+        # --- İŞTE DÜZELTME BURADA ---
         audio_processor = AudioProcessor(
             adapter=adapter, 
             language=language,

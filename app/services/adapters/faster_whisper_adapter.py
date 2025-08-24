@@ -53,6 +53,13 @@ class FasterWhisperAdapter(BaseSTTAdapter):
 
         final_logprob_threshold = logprob_threshold if logprob_threshold is not None else settings.STT_SERVICE_LOGPROB_THRESHOLD
         final_no_speech_threshold = no_speech_threshold if no_speech_threshold is not None else settings.STT_SERVICE_NO_SPEECH_THRESHOLD
+        
+        # --- HATA AYIKLAMA İÇİN YENİ LOG ---
+        log.debug(
+            "Applying transcription thresholds",
+            logprob_threshold=final_logprob_threshold,
+            no_speech_threshold=final_no_speech_threshold
+        )
 
         segments, info = self.model.transcribe(
             input_for_model, 
