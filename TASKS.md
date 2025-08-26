@@ -40,5 +40,7 @@ Bu faz, servisi gerçek zamanlı diyaloglar için uygun hale getirecek olan "str
     -   **Durum:** ⬜ Planlandı.
 
 -   [ ] **Görev ID: STT-009 - Gelişmiş Hata Ayıklama Modu**
-    -   **Açıklama:** Belirli bir `trace_id` ile gelen isteklerde, işlenen ses dosyasının (öncesi/sonrası) ve transkripsiyon sonucunun güvenli bir depolama alanına (örn: MinIO/S3) kaydedilmesini sağlayan bir "debug" modu ekle. Bu, canlıdaki sorunları analiz etmek için kritik olacaktır.
-    -   **Durum:** ⬜ Planlandı.
+    -   **Açıklama:** Belirli bir `trace_id` ile gelen isteklerde, işlenen ses dosyasının (öncesi/sonrası) ve transkripsiyon sonucunun güvenli bir depolama alanına (örn: MinIO/S3) kaydedilmesini sağlayan bir "debug" modu ekle.
+    -   **Kabul Kriterleri:**
+        -   [ ] `.env` dosyasına `STT_DEBUG_MODE=true` ve `STT_DEBUG_STORAGE_URI` gibi değişkenler eklenmeli.
+        -   [ ] Debug modu aktifken, her transkripsiyon işlemi sonunda ses dosyası ve metin sonucu belirtilen URI'ye yüklenmeli.
