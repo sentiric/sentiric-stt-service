@@ -1,46 +1,49 @@
-# ⚡ Sentiric STT Service - Görev Listesi
+# ⚡ Sentiric STT Service - Geliştirme Yol Haritası (v4.0)
 
-Bu belge, `stt-service`'in geliştirme yol haritasını ve önceliklerini tanımlar.
-
----
-
-### Faz 1: Yüksek Performanslı ve Dayanıklı Dosya Tabanlı Transkripsiyon (Tamamlandı)
-
-Bu faz, servisin ses dosyalarını verimli, doğru ve format fark etmeksizin dayanıklı bir şekilde metne çevirmesini hedefler.
-
--   [x] **FastAPI Sunucusu:** `/api/v1/transcribe` ve `/health` endpoint'leri.
--   [x] **Adaptör Mimarisi:** Farklı STT motorlarını desteklemek için `BaseSTTAdapter` soyut sınıfı ve `stt_service.py`'deki kayıt mekanizması.
--   [x] **Faster-Whisper Adaptörü:** `faster-whisper` kütüphanesini kullanarak yüksek performanslı CPU tabanlı transkripsiyon.
--   [x] **Optimize Edilmiş Dockerfile:** Modelleri build sırasında indiren ve son imajı hafif tutan multi-stage `Dockerfile`.
--   [x] **Otomatize Testler:** `pytest` ile temel API endpoint'lerinin ve dosya tipi kontrolünün test edilmesi.
--   [x] **Görev ID: STT-005 - Dayanıklı Ses İşleme:** Servise gelen tüm ses dosyalarını, modele göndermeden önce standart bir formata (16kHz mono, 16-bit PCM) dönüştüren `ffmpeg` tabanlı bir ön işleme katmanı eklendi.
--   [x] **Görev ID: STT-006 - Gelişmiş Test Arayüzü (Dosya):** Servisin kök adresinde, dosya yükleme ve dil seçimi özelliklerine sahip, kullanımı kolay bir HTML/JS test arayüzü oluşturuldu.
--   [x] **Görev ID: STT-007 - Birleşik Loglama:** Uvicorn ve Structlog logları birleştirilerek, tüm sistem çıktısının tek, tutarlı ve profesyonel bir formatta olması sağlandı.
+Bu belge, `stt-service`'in geliştirme görevlerini projenin genel fazlarına uygun olarak listeler.
 
 ---
 
-### Faz 2: Gerçek Zamanlı Akış (Streaming) Desteği (Tamamlandı)
+### **FAZ 1 & 2: Çift Modlu Transkripsiyon (Mevcut Durum)**
 
-Bu faz, servisi gerçek zamanlı diyaloglar için uygun hale getirecek olan "streaming" yeteneğini eklemeyi hedefler.
+**Amaç:** Hem kayıtlı dosyaları hem de gerçek zamanlı ses akışını yüksek doğruluk ve dayanıklılıkla metne çevirebilen, üretim kalitesinde bir servis oluşturmak.
 
--   [x] **Görev ID: STT-001 - WebSocket Endpoint'i:** FastAPI'ye `/api/v1/transcribe-stream` adında bir WebSocket endpoint'i eklendi. Bu endpoint, istemciden gelen anlık ses verisi akışını (16kHz, 16-bit PCM) kabul eder.
--   [x] **Görev ID: STT-002 - Akışlı Transkripsiyon Mantığı:** Ses akışını anlık olarak işleyen, `webrtcvad` ile ses aktivitesini (VAD) algılayarak sessizlik anlarında metin bloğunu sonuçlandıran ve sonucu WebSocket üzerinden `{"type": "final", "text": "..."}` formatında geri gönderen bir `AudioProcessor` sınıfı oluşturuldu.
--   [x] **Görev ID: STT-008 - Gerçek Zamanlı Test Arayüzü (Mikrofon):** Mevcut test arayüzüne, tarayıcı mikrofonundan ses alıp WebSocket endpoint'ine anlık olarak gönderen ve dönen transkripsiyon sonuçlarını gösteren yeni bir "Gerçek Zamanlı" sekmesi eklendi.
+-   [x] **Görev ID: STT-CORE-01 - Temel API ve Adaptör Mimarisi**
+    -   **Durum:** ✅ **Tamamlandı**
+    -   **Kabul Kriterleri:** `/transcribe` ve `/health` endpoint'leri çalışır durumda. `faster-whisper` adaptörü, `BaseSTTAdapter`'dan türetilmiştir.
+
+-   [x] **Görev ID: STT-CORE-02 - Dayanıklı Dosya İşleme ve Test Arayüzü**
+    -   **Durum:** ✅ **Tamamlandı**
+    -   **Kabul Kriterleri:** Servis, `ffmpeg` kullanarak gelen tüm ses dosyalarını standart bir formata (16kHz mono PCM) dönüştürür. Kök (`/`) adreste, dosya yükleyerek test imkanı sunan bir HTML arayüzü mevcuttur.
+
+-   [x] **Görev ID: STT-CORE-03 - Gerçek Zamanlı Akış (Streaming)**
+    -   **Durum:** ✅ **Tamamlandı**
+    -   **Kabul Kriterleri:** `/api/v1/transcribe-stream` WebSocket endpoint'i, gelen 16kHz PCM ses akışını kabul eder. `webrtcvad` ile sessizlik anlarını tespit ederek, konuşma bittiğinde nihai metni `{"type": "final", ...}` formatında istemciye gönderir. Test arayüzünde mikrofonla canlı test imkanı bulunur.
 
 ---
 
-### Faz 3: Gelişmiş Özellikler ve Diğer Adaptörler (Sıradaki Öncelikler)
+### **FAZ 3: Gelişmiş Özellikler ve Optimizasyon (Sıradaki Öncelikler)**
 
--   [ ] **Görev ID: STT-003 - `whisper.cpp` Adaptörü**
-    -   **Açıklama:** `whisper.cpp` kütüphanesi için yeni bir adaptör oluştur. Bu, potansiyel olarak daha da yüksek performans ve daha düşük kaynak kullanımı sunabilir.
-    -   **Durum:** ⬜ Planlandı.
-
--   [ ] **Görev ID: STT-004 - Bulut STT Adaptörü (örn: Google Speech-to-Text)**
-    -   **Açıklama:** En yüksek doğruluk gerektiren senaryolar için Google Cloud'un STT API'sini kullanan bir adaptör oluştur.
-    -   **Durum:** ⬜ Planlandı.
+**Amaç:** Servisin performansını, doğruluğunu ve hata ayıklama yeteneklerini daha da ileriye taşımak.
 
 -   [ ] **Görev ID: STT-009 - Gelişmiş Hata Ayıklama Modu**
     -   **Açıklama:** Belirli bir `trace_id` ile gelen isteklerde, işlenen ses dosyasının (öncesi/sonrası) ve transkripsiyon sonucunun güvenli bir depolama alanına (örn: MinIO/S3) kaydedilmesini sağlayan bir "debug" modu ekle.
     -   **Kabul Kriterleri:**
         -   [ ] `.env` dosyasına `STT_DEBUG_MODE=true` ve `STT_DEBUG_STORAGE_URI` gibi değişkenler eklenmeli.
-        -   [ ] Debug modu aktifken, her transkripsiyon işlemi sonunda ses dosyası ve metin sonucu belirtilen URI'ye yüklenmeli.
+        -   [ ] Debug modu aktifken, her transkripsiyon işlemi sonunda işlenen ses dosyası (standartlaştırılmış `.wav` formatında) ve metin sonucu (`.json` olarak) belirtilen URI'ye yüklenmeli.
+        -   [ ] Yükleme işlemi, ana transkripsiyon sürecini yavaşlatmayacak şekilde asenkron olarak yapılmalıdır.
+
+-   [ ] **Görev ID: STT-003 - `whisper.cpp` Adaptörü**
+    -   **Açıklama:** `whisper.cpp` kütüphanesi için yeni bir adaptör oluştur. Bu, potansiyel olarak daha da yüksek performans ve daha düşük kaynak kullanımı sunabilir.
+    -   **Kabul Kriterleri:**
+        -   [ ] `WhisperCppAdapter` adında yeni bir adaptör sınıfı oluşturulmalı.
+        -   [ ] Bu adaptör, `BaseSTTAdapter` arayüzünü tam olarak implemente etmeli.
+        -   [ ] `.env` dosyasındaki `STT_SERVICE_ADAPTER` değişkeni `whisper_cpp` olarak ayarlandığında, servisin bu adaptörü kullanarak çalışması sağlanmalı.
+        -   [ ] Yeni adaptörün performansı, `faster-whisper` ile karşılaştırmalı olarak belgelenmeli.
+
+-   [ ] **Görev ID: STT-004 - Bulut STT Adaptörü (örn: Google Speech-to-Text)**
+    -   **Açıklama:** En yüksek doğruluk gerektiren senaryolar için Google Cloud'un STT API'sini kullanan bir adaptör oluştur.
+    -   **Kabul Kriterleri:**
+        -   [ ] `GoogleSttAdapter` adında yeni bir adaptör sınıfı oluşturulmalı.
+        -   [ ] Adaptör, hem dosya tabanlı hem de streaming API'lerini desteklemelidir.
+        -   [ ] `.env` dosyasından `STT_SERVICE_ADAPTER=google_stt` ayarı ile aktif hale getirilebilmelidir.
