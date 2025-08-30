@@ -4,7 +4,7 @@ Bu belge, `stt-service`'in geliştirme görevlerini projenin genel fazlarına uy
 
 ---
 
-### **FAZ 1 & 2: Çift Modlu Transkripsiyon (Mevcut Durum)**
+### **FAZ 1 : Çift Modlu Transkripsiyon (Mevcut Durum)**
 
 **Amaç:** Hem kayıtlı dosyaları hem de gerçek zamanlı ses akışını yüksek doğruluk ve dayanıklılıkla metne çevirebilen, üretim kalitesinde bir servis oluşturmak.
 
@@ -21,6 +21,19 @@ Bu belge, `stt-service`'in geliştirme görevlerini projenin genel fazlarına uy
     -   **Kabul Kriterleri:** `/api/v1/transcribe-stream` WebSocket endpoint'i, gelen 16kHz PCM ses akışını kabul eder. `webrtcvad` ile sessizlik anlarını tespit ederek, konuşma bittiğinde nihai metni `{"type": "final", ...}` formatında istemciye gönderir. Test arayüzünde mikrofonla canlı test imkanı bulunur.
 
 ---
+
+### **FAZ 2 : ...
+
+-   [ ] **Görev ID: STT-REFACTOR-01 - Format Dönüşüm Sorumluluğunu Kaldırma (YÜKSEK ÖNCELİK)**
+    -   **Durum:** ⬜ Planlandı
+    -   **Bağımlılık:** `MEDIA-REFACTOR-01`'in tamamlanmasına bağlı.
+    -   **Tahmini Süre:** ~2 saat
+    -   **Açıklama:** "Tek Sorumluluk Prensibi" gereği, ses formatı dönüşümü artık `media-service`'in görevidir. Bu görev, `stt-service`'i bu fazladan sorumluluktan arındırarak daha hafif, daha hızlı ve daha odaklı bir uzman servis haline getirecektir.
+    -   **Kabul Kriterleri:**
+        -   [ ] `app/utils/audio.py` dosyası ve `ffmpeg` bağımlılığı projeden tamamen kaldırılmalıdır.
+        -   [ ] `/api/v1/transcribe` ve `/api/v1/transcribe-stream` endpoint'leri, gelen ses verisinin zaten standart 16kHz PCM formatında olduğunu varsaymalı ve herhangi bir format dönüşümü yapmadan doğrudan transkripsiyon modeline göndermelidir.
+        -   [ ] Projenin `Dockerfile`'ı, `ffmpeg` kurulum adımlarını içermeyecek şekilde güncellenmelidir.
+
 
 ### **FAZ 3: Gelişmiş Özellikler ve Optimizasyon (Sıradaki Öncelikler)**
 
