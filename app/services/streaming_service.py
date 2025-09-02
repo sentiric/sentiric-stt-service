@@ -1,3 +1,5 @@
+# app/services/streaming_service.py dosyasının TAM ve GÜNCELLENMİŞ HALİ
+import time # --- YENİ ---
 import numpy as np
 import structlog
 from typing import AsyncGenerator, Optional
@@ -18,13 +20,15 @@ class AudioProcessor:
         self.no_speech_threshold = no_speech_threshold
         
         self.buffer = bytearray()
-        # Her 1.5 saniyede bir transkripsiyon yapmaya zorla (veya o kadar ses biriktiğinde)
-        self.bytes_per_ms = 32  # 16kHz, 16-bit PCM = 32000 bytes/s = 32 bytes/ms
+        self.bytes_per_ms = 32
         self.chunk_size = int(1.5 * 1000 * self.bytes_per_ms) 
-        self.min_chunk_size = int(0.5 * 1000 * self.bytes_per_ms) # En az 0.5 saniyelik ses
+        self.min_chunk_size = int(0.5 * 1000 * self.bytes_per_ms)
+        
+        # --- YENİ: Timeout yönetimi için değişkenler ---
+        self.last_audio_time = time.time()
+        self.no_speech_timeout_seconds = 10  # 10 saniye sessizlikten sonra timeout
 
     async def _process_chunk(self, audio_chunk: bytes):
-        """Yardımcı fonksiyon: Gelen ses parçasını işler ve sonucu döndürür."""
         try:
             audio_np = np.frombuffer(audio_chunk, dtype=np.int16).astype(np.float32) / 32767.0
             
@@ -33,7 +37,7 @@ class AudioProcessor:
                 self.language,
                 logprob_threshold=self.logprob_threshold,
                 no_speech_threshold=self.no_speech_threshold,
-                vad_filter=True  # Whisper'ın kendi VAD'ını kullanmasını sağlıyoruz
+                vad_filter=True
             )
 
             if text:
@@ -46,16 +50,14 @@ class AudioProcessor:
         return None
 
     async def transcribe_stream(self, audio_chunk_generator: AsyncGenerator[bytes, None]) -> AsyncGenerator[dict, None]:
-        log.info(
-            "Starting audio stream transcription in FORCED mode", 
-            language=self.language or "auto",
-            chunk_size_bytes=self.chunk_size
-        )
+        log.info("Starting audio stream transcription", language=self.language or "auto")
         
+        self.last_audio_time = time.time() # Başlangıç zamanını ayarla
+
         async for chunk in audio_chunk_generator:
             self.buffer.extend(chunk)
+            self.last_audio_time = time.time() # Her ses paketi geldiğinde zamanı güncelle
 
-            # Yeterli veri biriktiğinde, beklemeden işlemi yap
             while len(self.buffer) >= self.chunk_size:
                 process_data = self.buffer[:self.chunk_size]
                 self.buffer = self.buffer[self.chunk_size:]
@@ -63,8 +65,14 @@ class AudioProcessor:
                 result = await self._process_chunk(process_data)
                 if result:
                     yield result
-        
-        # Akış bittiğinde arta kalanları da işle (eğer yeterince büyükse)
+            
+            # --- YENİ: Timeout kontrolü ---
+            # Bu blok, audio_chunk_generator'dan veri gelmediğinde çalışır
+            if time.time() - self.last_audio_time > self.no_speech_timeout_seconds:
+                log.warning(f"No speech detected for {self.no_speech_timeout_seconds} seconds. Sending timeout event.")
+                yield {"type": "no_speech_timeout", "message": "No speech detected."}
+                self.last_audio_time = time.time() # Timeout sonrası tekrar sayacı sıfırla
+
         if len(self.buffer) > self.min_chunk_size:
             result = await self._process_chunk(bytes(self.buffer))
             if result:
