@@ -47,3 +47,6 @@ def get_adapter(request: Request) -> Optional[BaseSTTAdapter]:
 
 from .adapters.faster_whisper_adapter import FasterWhisperAdapter
 register_adapter("faster_whisper", FasterWhisperAdapter)
+
+from .adapters.google_live_adapter import GoogleLiveAdapter # YENİ SATIR
+register_adapter("google_live", GoogleLiveAdapter) # YENİ SATIR
