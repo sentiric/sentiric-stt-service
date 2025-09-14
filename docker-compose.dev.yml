@@ -1,0 +1,48 @@
+# docker-compose.dev.yml
+# Service Geliştirme ortamı
+
+networks:
+  sentiric-net:
+    name: "${NETWORK_NAME:-sentiric-net}"
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${NETWORK_SUBNET}
+          gateway: ${NETWORK_GATEWAY}
+  
+volumes:
+  # [capability-stt]: Konuşma Tanıma Yetenekleri (STT Capabilities)
+  # -------------------------------------------------- 
+  # --------------------------------------------------    
+  stt-model-cache:
+
+services:
+  # [capability-stt]: Konuşma Tanıma Yetenekleri (STT Capabilities)
+  # -------------------------------------------------- 
+  stt-service:
+    build: { context: ../sentiric-stt-service }
+    env_file: ["${ENV_FILE_PATH}"]
+    volumes: 
+      - "${CONFIG_REPO_PATH}:/sentiric-config:ro"
+      - "${CERTIFICATES_REPO_PATH}:/sentiric-certificates:ro"
+      - "${ASSETS_REPO_PATH}:/sentiric-assets:ro"
+      - "stt-model-cache:/root/.cache"
+    ports: 
+      - "15010:${STT_SERVICE_HTTP_PORT:-15010}"
+      - "15011:${STT_SERVICE_GRPC_PORT:-15011}"
+      - "15012:${STT_SERVICE_METRICS_PORT:-15012}"          
+    networks:
+      sentiric-net:
+        ipv4_address: ${STT_SERVICE_IPV4_ADDRESS}       
+    restart: always
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:15010/health"]
+    #   # Model hazır olduğunda daha hızlı haberdar olalım
+    #   interval: 10s
+    #   # Yanıt için bekleme süresi
+    #   timeout: 5s
+    #   # Sağlıksız saymadan önce deneme sayısı
+    #   retries: 5
+    #   # Konteynere başlaması ve büyük modeli indirmesi/yüklemesi için 10 dakika süre tanı.
+    #   # Bu süre boyunca healthcheck başarısız olsa bile konteyner sağlıksız sayılmaz.
+    #   start_period: 10m

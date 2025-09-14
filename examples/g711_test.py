@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger("G711_Simulator")
 
 # --- Yapılandırma ---
-STT_HOST = "localhost:5001"
+STT_HOST = "localhost:15010"
 INPUT_RATE = 8000
 TARGET_RATE = 16000
 CHUNK_SIZE = 800  # 100ms @ 8kHz (8000 * 0.100)

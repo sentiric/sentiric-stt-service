@@ -1,6 +1,11 @@
 # --- STAGE 1: Builder ---
 FROM python:3.11-slim-bullseye AS builder
 
+# Build argümanlarını build aşamasında kullanılabilir yap
+ARG GIT_COMMIT="unknown"
+ARG BUILD_DATE="unknown"
+ARG SERVICE_VERSION="0.0.0"
+
 WORKDIR /app
 
 # Ortam değişkenleri
@@ -43,9 +48,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Uygulama kodunu kopyala
 COPY ./app ./app
 
-EXPOSE 5001
-
 # --- DÜZELTME: CMD'yi ENTRYPOINT ve CMD olarak ayırıyoruz ---
 # Bu, komutun Docker tarafından her zaman doğru yorumlanmasını sağlar.
 ENTRYPOINT ["uvicorn"]
-CMD ["app.main:app", "--host", "0.0.0.0", "--port", "5001"]
+CMD ["app.main:app", "--host", "0.0.0.0", "--port", "15010"]
