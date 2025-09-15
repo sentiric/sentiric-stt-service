@@ -38,8 +38,13 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1 \
     HF_HUB_DISABLE_SYMLINKS_WARNING=1 \
     NO_COLOR=1
 
-# Sadece çalışma zamanı için gerekli sistem bağımlılıklarını kur
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg curl && rm -rf /var/lib/apt/lists/*
+# --- Çalışma zamanı sistem bağımlılıkları ---
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    netcat-openbsd \
+    curl \
+    ca-certificates \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/* 
 
 # Builder'dan sadece kurulu Python kütüphanelerini kopyala
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
