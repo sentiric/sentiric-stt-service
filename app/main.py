@@ -73,11 +73,14 @@ async def read_root(request: Request):
 @app.get("/health", tags=["Health"])
 @app.head("/health")
 def health_check(request: Request):
+    # app.state üzerinden modelin hazır olup olmadığını kontrol et
     is_loaded = getattr(request.app.state, 'model_ready', False)
 
     if not is_loaded:
         status = {"status": "loading_model", "model_ready": is_loaded, "adapter_type": settings.STT_SERVICE_ADAPTER}
         log.warn("Health check failed: Model is not loaded yet.", **status)
+        # Model hazır değilse 503 Service Unavailable döndür.
+        # Docker'ın healthcheck'i bu sayede servisin "unhealthy" olduğunu anlayacak.
         return Response(content=str(status), status_code=503, media_type="application/json")
     
     status = {"status": "ok", "model_ready": is_loaded, "adapter_type": settings.STT_SERVICE_ADAPTER}
@@ -85,7 +88,13 @@ def health_check(request: Request):
     return status
 
 @app.get("/healthz", include_in_schema=False)
-def healthz_check():
+def healthz_check(request: Request): # request parametresini ekleyelim
+    # app.state üzerinden modelin hazır olup olmadığını kontrol et
+    is_loaded = getattr(request.app.state, 'model_ready', False)
+    if not is_loaded:
+        # Model yüklenirken bile bu endpoint'in 200 dönmesi,
+        # container'ın en azından çalıştığını gösterir.
+        return Response(status_code=503)
     return Response(status_code=200)
 
 Instrumentator().instrument(app).expose(app)
