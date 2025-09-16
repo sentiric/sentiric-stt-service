@@ -1,4 +1,5 @@
-# app/main.py
+# sentiric-stt-service/app/main.py
+
 import time
 import uuid
 import asyncio
@@ -40,24 +41,26 @@ templates = Jinja2Templates(directory="app/templates")
 @app.middleware("http")
 async def logging_middleware(request: Request, call_next) -> Response:
     clear_contextvars()
-    start_time = time.perf_counter()
     
-    # YENİ: /healthz isteklerini loglamadan atla
     if request.url.path == "/healthz":
         return await call_next(request)
 
     trace_id = request.headers.get("X-Trace-ID") or f"stt-trace-{uuid.uuid4()}"
     bind_contextvars(trace_id=trace_id)
+    
+    log.info(
+        "Request received",
+        http_method=request.method,
+        http_path=request.url.path
+    )
 
     response = await call_next(request)
-    process_time = (time.perf_counter() - start_time) * 1000
-    
+
     log.info(
         "Request completed",
         http_method=request.method,
         http_path=request.url.path,
         http_status_code=response.status_code,
-        duration_ms=round(process_time, 2),
     )
     return response
 
@@ -81,7 +84,6 @@ def health_check(request: Request):
     log.debug("Health check performed successfully", **status)
     return status
 
-# YENİ: Log basmayan basit sağlık kontrolü endpoint'i
 @app.get("/healthz", include_in_schema=False)
 def healthz_check():
     return Response(status_code=200)
