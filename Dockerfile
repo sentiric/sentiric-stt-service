@@ -53,7 +53,5 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Uygulama kodunu kopyala
 COPY ./app ./app
 
-# --- DÜZELTME: CMD'yi ENTRYPOINT ve CMD olarak ayırıyoruz ---
-# Bu, komutun Docker tarafından her zaman doğru yorumlanmasını sağlar.
-ENTRYPOINT ["uvicorn"]
-CMD ["app.main:app", "--host", "0.0.0.0", "--port", "15010"]
+# Uygulamayı başlat
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "15010", "--no-access-log"]
