@@ -56,3 +56,14 @@ Bu belge, `stt-service`'in diyalog döngüsündeki kritik rolünü daha sağlam 
     -   **Öncelik:** DÜŞÜK
     -   **Açıklama:** Bu servisin sorumluluğunu sadece `faster-whisper` modelini çalıştırmakla sınırlamak (`stt-whisper-service` olarak yeniden adlandırmak) ve API yönlendirme, WebSocket yönetimi gibi görevleri yeni oluşturulacak bir `stt-gateway-service`'e devretmek. Bu, `tts-gateway` mimarisinin başarısını STT katmanına taşır.
     -   **Bağımlılık:** `STT-ADAPT-01`'in tamamlanması, bu mimarinin gerekliliğini ve faydalarını daha net ortaya koyacaktır.
+
+### **FAZ 4: Gözlemlenebilirlik ve Operasyon (Sıradaki Öncelik)**
+
+-   **Görev ID: LLM-OPS-01 - "Sessiz" Sağlık Kontrolü Endpoint'i Ekle**
+    -   **Durum:** ⬜ **Yapılacak (Öncelik 1 - ORTA)**
+    -   **Bağımlılık:** `infrastructure`'daki `OPS-IMPRV-01`
+    -   **Açıklama:** Docker `healthcheck` mekanizmasının neden olduğu log kirliliğini önlemek için, log basmayan yeni bir `/healthz` endpoint'i oluşturulmalıdır. Loglama middleware'i bu endpoint'e yapılan istekleri atlayacak şekilde güncellenmelidir.
+    -   **Kabul Kriterleri:**
+        -   [ ] `/healthz` adında yeni bir endpoint oluşturulmalı.
+        -   [ ] Bu endpoint, loglama middleware'i tarafından filtrelenmeli ve çağrıldığında konsola hiçbir log basmamalıdır.
+        -   [ ] Endpoint, `200 OK` durum koduyla boş bir yanıt dönmelidir.    

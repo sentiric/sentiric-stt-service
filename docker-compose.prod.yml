@@ -35,14 +35,9 @@ services:
       sentiric-net:
         ipv4_address: ${STT_SERVICE_IPV4_ADDRESS}       
     restart: always
-    # healthcheck:
-    #   test: ["CMD", "curl", "-f", "http://localhost:15010/health"]
-    #   # Model hazır olduğunda daha hızlı haberdar olalım
-    #   interval: 10s
-    #   # Yanıt için bekleme süresi
-    #   timeout: 5s
-    #   # Sağlıksız saymadan önce deneme sayısı
-    #   retries: 5
-    #   # Konteynere başlaması ve büyük modeli indirmesi/yüklemesi için 10 dakika süre tanı.
-    #   # Bu süre boyunca healthcheck başarısız olsa bile konteyner sağlıksız sayılmaz.
-    #   start_period: 10m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:15010/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10m

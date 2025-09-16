@@ -1,3 +1,4 @@
+# app/main.py
 import time
 import uuid
 import asyncio
@@ -41,6 +42,10 @@ async def logging_middleware(request: Request, call_next) -> Response:
     clear_contextvars()
     start_time = time.perf_counter()
     
+    # YENİ: /healthz isteklerini loglamadan atla
+    if request.url.path == "/healthz":
+        return await call_next(request)
+
     trace_id = request.headers.get("X-Trace-ID") or f"stt-trace-{uuid.uuid4()}"
     bind_contextvars(trace_id=trace_id)
 
@@ -75,5 +80,10 @@ def health_check(request: Request):
     status = {"status": "ok", "model_ready": is_loaded, "adapter_type": settings.STT_SERVICE_ADAPTER}
     log.debug("Health check performed successfully", **status)
     return status
+
+# YENİ: Log basmayan basit sağlık kontrolü endpoint'i
+@app.get("/healthz", include_in_schema=False)
+def healthz_check():
+    return Response(status_code=200)
 
 Instrumentator().instrument(app).expose(app)
