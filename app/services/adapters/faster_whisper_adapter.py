@@ -7,6 +7,7 @@ from .base import BaseSTTAdapter
 from typing import Optional, Union
 
 log = structlog.get_logger(__name__)
+
 class FasterWhisperAdapter(BaseSTTAdapter):
     
     def __init__(self):
@@ -25,20 +26,19 @@ class FasterWhisperAdapter(BaseSTTAdapter):
                 compute_type=settings.STT_SERVICE_COMPUTE_TYPE
             )
             self.model_loaded = True
-            log.info("FasterWhisperAdapter model loaded successfully into instance.")
+            log.info("FasterWhisperAdapter model loaded successfully.")
         except Exception as e:
             self.model_loaded = False
             log.error("Failed to load FasterWhisperAdapter model", error=str(e), exc_info=True)
             raise e
     
-    # transcribe metodunu GÜNCELLE
     def transcribe(
         self, 
         audio_input: Union[bytes, np.ndarray], 
         language: Optional[str] = None,
         logprob_threshold: Optional[float] = None,
         no_speech_threshold: Optional[float] = None,
-        vad_filter: bool = False # YENİ parametre
+        vad_filter: bool = False
     ) -> str:
         if not self.model_loaded or self.model is None:
             raise RuntimeError("Model is not available for transcription.")
@@ -55,24 +55,21 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         final_logprob_threshold = logprob_threshold if logprob_threshold is not None else settings.STT_SERVICE_LOGPROB_THRESHOLD
         final_no_speech_threshold = no_speech_threshold if no_speech_threshold is not None else settings.STT_SERVICE_NO_SPEECH_THRESHOLD
         
-        # --- HATA AYIKLAMA İÇİN YENİ LOG ---
         log.debug(
             "Applying transcription thresholds",
             logprob_threshold=final_logprob_threshold,
             no_speech_threshold=final_no_speech_threshold
         )
-
         
         segments, info = self.model.transcribe(
             input_for_model, 
             beam_size=5, 
             language=effective_language,
-            # VAD filtresini parametreye göre dinamik olarak AÇ/KAPAT
             vad_filter=vad_filter,
-            vad_parameters=dict(min_silence_duration_ms=700), # Sessizlik süresini biraz artıralım
+            vad_parameters=dict(min_silence_duration_ms=700),
         )
         
-        log.info(
+        log.debug(
             "Transcription by model completed",
             detected_language=info.language,
             language_probability=round(info.language_probability, 2)

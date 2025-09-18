@@ -1,4 +1,3 @@
-# app/services/streaming_service.py (TAM VE NİHAİ DÜZELTİLMİŞ HALİ)
 import asyncio
 import time
 import numpy as np
@@ -40,7 +39,7 @@ class AudioProcessor:
                 vad_filter=True
             )
             if text:
-                log.info("Chunk transcription successful", text=text)
+                log.debug("Chunk transcription successful", text=text)
                 return {"type": "final", "text": text}
         except Exception as e:
             log.error("Error during transcription chunk", error=str(e), exc_info=True)
@@ -56,12 +55,10 @@ class AudioProcessor:
 
         while True:
             try:
-                # 1 saniyelik timeout ile bir sonraki ses parçasını bekliyoruz.
                 chunk = await asyncio.wait_for(audio_iterator.__anext__(), timeout=1.0)
                 self.buffer.extend(chunk)
-                self.last_audio_time = time.time() # Ses geldi, zamanı güncelle
+                self.last_audio_time = time.time()
 
-                # Buffer yeterince dolduysa işle
                 while len(self.buffer) >= self.chunk_size:
                     process_data = self.buffer[:self.chunk_size]
                     self.buffer = self.buffer[self.chunk_size:]
@@ -71,14 +68,12 @@ class AudioProcessor:
                         yield result
 
             except asyncio.TimeoutError:
-                # 1 saniye boyunca ses gelmedi. Ana timeout'u kontrol et.
                 if time.time() - self.last_audio_time > self.no_speech_timeout_seconds:
-                    log.warning(f"No speech detected for {self.no_speech_timeout_seconds} seconds. Sending timeout event.")
+                    log.warn(f"No speech detected for {self.no_speech_timeout_seconds} seconds. Sending timeout event.")
                     yield {"type": "no_speech_timeout", "message": "No speech detected."}
-                    self.last_audio_time = time.time() # Zamanlayıcıyı sıfırla ki sürekli timeout göndermesin
+                    self.last_audio_time = time.time()
             
             except StopAsyncIteration:
-                # Ses akışı istemci tarafından doğal olarak sonlandırıldı.
                 log.info("Audio stream ended normally.")
                 break
             
@@ -87,9 +82,8 @@ class AudioProcessor:
                 yield {"type": "error", "message": "Internal processing error."}
                 break
 
-        # Döngü bittiğinde, buffer'da kalan son parçayı işle
         if len(self.buffer) > self.min_chunk_size:
-            log.info("Processing final remaining buffer.", buffer_size=len(self.buffer))
+            log.debug("Processing final remaining buffer.", buffer_size=len(self.buffer))
             result = await self._process_chunk(bytes(self.buffer))
             if result:
                 yield result
