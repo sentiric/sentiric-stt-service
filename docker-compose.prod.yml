@@ -36,7 +36,7 @@ services:
         ipv4_address: ${STT_SERVICE_IPV4_ADDRESS}       
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:15010/healthz"]
+      test: ["CMD-SHELL", "nc -z localhost 15010"]
       interval: 10s
       timeout: 5s
       retries: 5
