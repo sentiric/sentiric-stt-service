@@ -1,3 +1,4 @@
+# sentiric-stt-service\app\services\streaming_service.py
 import asyncio
 import time
 import numpy as np
@@ -69,9 +70,11 @@ class AudioProcessor:
 
             except asyncio.TimeoutError:
                 if time.time() - self.last_audio_time > self.no_speech_timeout_seconds:
-                    log.warn(f"No speech detected for {self.no_speech_timeout_seconds} seconds. Sending timeout event.")
+                    log.warn(f"{self.no_speech_timeout_seconds} saniyedir ses algılanmadı. Timeout olayı gönderiliyor.")
+                    # --- DEĞİŞİKLİK BURADA ---
                     yield {"type": "no_speech_timeout", "message": "No speech detected."}
-                    self.last_audio_time = time.time()
+                    # Zamanı sıfırla ki sürekli timeout göndermesin
+                    self.last_audio_time = time.time() 
             
             except StopAsyncIteration:
                 log.info("Audio stream ended normally.")
