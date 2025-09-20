@@ -1,11 +1,18 @@
+# ========== DOSYA: sentiric-stt-service/app/api/v1/endpoints.py (TAM VE GÜNCEL İÇERİK) ==========
 import asyncio
 import structlog
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form, WebSocket, WebSocketDisconnect, Request
+from fastapi import (
+    APIRouter, UploadFile, File, HTTPException, Form, 
+    WebSocket, WebSocketDisconnect, Request
+)
 from pydantic import BaseModel
 from typing import Optional
 from app.utils.audio import resample_audio
 from app.services.stt_service import get_adapter
 from app.services.streaming_service import AudioProcessor
+
+# Uvicorn'un fırlatabileceği istisnayı da yakalamak için import ediyoruz.
+from uvicorn.protocols.utils import ClientDisconnected
 
 router = APIRouter()
 log = structlog.get_logger(__name__)
@@ -56,7 +63,7 @@ async def websocket_transcription(
     language: Optional[str] = None,
     logprob_threshold: Optional[float] = None,
     no_speech_threshold: Optional[float] = None,
-    vad_aggressiveness: Optional[int] = None # YENİ parametre eklendi
+    vad_aggressiveness: Optional[int] = None
 ):
     await websocket.accept()
     client_info = f"{websocket.client.host}:{websocket.client.port}"
@@ -69,14 +76,14 @@ async def websocket_transcription(
             log.warn("WebSocket connection rejected because model is not ready.", client=client_info)
             try:
                 await websocket.send_json({"type": "error", "message": "Model is not ready, please try again in a moment."})
-            except RuntimeError:
+            except (WebSocketDisconnect, ClientDisconnected, RuntimeError):
                 pass 
             return
         
         audio_processor = AudioProcessor(
             adapter=adapter, 
             language=language,
-            vad_aggressiveness=vad_aggressiveness, # YENİ parametre AudioProcessor'a geçirildi
+            vad_aggressiveness=vad_aggressiveness,
             logprob_threshold=logprob_threshold,
             no_speech_threshold=no_speech_threshold
         )
@@ -92,10 +99,13 @@ async def websocket_transcription(
         async def transcribe_loop():
             async for result in audio_processor.transcribe_stream(audio_chunk_generator()):
                 try:
+                    # --- DEĞİŞİKLİK BURADA BAŞLIYOR ---
                     await websocket.send_json(result)
-                except RuntimeError:
-                    log.warn("Could not send to a closed WebSocket. Breaking loop.", client=client_info)
-                    break
+                except (WebSocketDisconnect, ClientDisconnected, RuntimeError):
+                    # Bu bir hata değil, beklenen bir durum (istemci bağlantıyı kapattı).
+                    log.warn("Could not send to a closed WebSocket. Client likely disconnected. Breaking loop.", client=client_info)
+                    break # Bağlantı koptuysa döngüden çık.
+                    # --- DEĞİŞİKLİK SONA ERİYOR ---
 
         task = asyncio.create_task(transcribe_loop())
         await task
@@ -111,6 +121,6 @@ async def websocket_transcription(
         if websocket.client_state.name == "CONNECTED":
             try:
                 await websocket.close()
-            except RuntimeError:
+            except (WebSocketDisconnect, ClientDisconnected, RuntimeError):
                 pass
         log.info("WebSocket connection resources cleaned up.", client=client_info)
