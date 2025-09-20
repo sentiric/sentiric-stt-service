@@ -1,3 +1,4 @@
+# sentiric-stt-service/app/main.py
 import uuid
 import asyncio
 from contextlib import asynccontextmanager
@@ -18,6 +19,8 @@ SERVICE_NAME = "stt-service"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    
+    # DEĞİŞİKLİK: setup_logging'i config'den gelen değerlerle çağır.
     setup_logging(log_level=settings.LOG_LEVEL, env=settings.ENV)
     log = structlog.get_logger().bind(service=SERVICE_NAME)
     

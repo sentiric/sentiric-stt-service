@@ -1,7 +1,11 @@
+# sentiric-stt-service/app/core/logging.py
 import logging
 import sys
 import structlog
+# DEĞİŞİKLİK: Artık config'i import etmiyoruz.
+# from app.core.config import settings 
 
+# DEĞİŞİKLİK: Fonksiyon artık parametre alıyor.
 def setup_logging(log_level: str, env: str):
     log_level = log_level.upper()
 
@@ -33,7 +37,7 @@ def setup_logging(log_level: str, env: str):
     
     root_logger = logging.getLogger()
     root_logger.handlers = [handler]
-    root_logger.setLevel(log_level)
+    root_logger.setLevel(log_level) # DEĞİŞİKLİK: Seviyeyi doğrudan parametreden al.
 
     for logger_name in ["uvicorn", "uvicorn.error", "uvicorn.access"]:
         uvicorn_logger = logging.getLogger(logger_name)
