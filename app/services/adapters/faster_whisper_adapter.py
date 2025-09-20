@@ -1,3 +1,4 @@
+# ========== DOSYA: sentiric-stt-service/app/services/adapters/faster_whisper_adapter.py (TAM VE GÜNCEL İÇERİK) ==========
 from faster_whisper import WhisperModel
 from app.core.config import settings
 import structlog
@@ -56,10 +57,29 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         final_logprob_threshold = logprob_threshold if logprob_threshold is not None else settings.STT_SERVICE_LOGPROB_THRESHOLD
         final_no_speech_threshold = no_speech_threshold if no_speech_threshold is not None else settings.STT_SERVICE_NO_SPEECH_THRESHOLD
         
-        # YENİ: VAD parametrelerini birleştir
+        # --- DÜZELTME BURADA BAŞLIYOR ---
+        # Varsayılan VAD parametrelerini belirliyoruz
         final_vad_parameters = {"min_silence_duration_ms": 700}
+        
+        # Eğer dışarıdan `vad_parameters` gelirse, içindeki 'aggressiveness' değerini işliyoruz.
         if vad_parameters:
-            final_vad_parameters.update(vad_parameters)
+            aggressiveness = vad_parameters.get("aggressiveness")
+            try:
+                # Gelen değeri integer'a çevirmeye çalışıyoruz.
+                aggressiveness_level = int(aggressiveness) if aggressiveness is not None else 1
+                if aggressiveness_level == 0:
+                    final_vad_parameters["min_silence_duration_ms"] = 1500
+                elif aggressiveness_level == 1:
+                    final_vad_parameters["min_silence_duration_ms"] = 700
+                elif aggressiveness_level == 2:
+                    final_vad_parameters["min_silence_duration_ms"] = 400
+                elif aggressiveness_level >= 3:
+                    final_vad_parameters["min_silence_duration_ms"] = 250
+            except (ValueError, TypeError):
+                # Eğer çevirme başarısız olursa, varsayılanı kullan.
+                log.warn("Geçersiz 'aggressiveness' değeri alındı, varsayılan kullanılıyor.", received_value=aggressiveness)
+                pass # final_vad_parameters'ın varsayılan değeri kalır
+        # --- DÜZELTME SONA ERİYOR ---
         
         log.debug(
             "Applying transcription thresholds",
