@@ -12,13 +12,15 @@ class AudioProcessor:
     def __init__(self, 
                  adapter: BaseSTTAdapter, 
                  language: str | None = None, 
-                 vad_aggressiveness: Optional[int] = None,
+                 vad_aggressiveness: Optional[int] = None, 
                  logprob_threshold: Optional[float] = None,
                  no_speech_threshold: Optional[float] = None):
         self.adapter = adapter
         self.language = language
         self.logprob_threshold = logprob_threshold
         self.no_speech_threshold = no_speech_threshold
+  
+        self.vad_aggressiveness = vad_aggressiveness 
         
         self.buffer = bytearray()
         self.bytes_per_ms = 32
@@ -37,7 +39,9 @@ class AudioProcessor:
                 self.language,
                 logprob_threshold=self.logprob_threshold,
                 no_speech_threshold=self.no_speech_threshold,
-                vad_filter=True
+                vad_filter=True,
+                # YENİ: VAD parametresini adaptöre geçir
+                vad_parameters={"aggressiveness": self.vad_aggressiveness} if self.vad_aggressiveness is not None else None
             )
             if text:
                 log.debug("Chunk transcription successful", text=text)
