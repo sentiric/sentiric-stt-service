@@ -9,6 +9,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from prometheus_fastapi_instrumentator import Instrumentator
 from structlog.contextvars import bind_contextvars, clear_contextvars
+# --- YENİ IMPORT ---
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+# --- YENİ IMPORT SONU ---
 
 from app.api.v1.endpoints import router as api_v1_router
 from app.core.config import settings
@@ -19,8 +22,6 @@ SERVICE_NAME = "stt-service"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    
-    # DEĞİŞİKLİK: setup_logging'i config'den gelen değerlerle çağır.
     setup_logging(log_level=settings.LOG_LEVEL, env=settings.ENV)
     log = structlog.get_logger().bind(service=SERVICE_NAME)
     
@@ -43,6 +44,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.SERVICE_VERSION, lifespan=lifespan)
 log = structlog.get_logger(__name__)
+
+# --- YENİ MİDDLEWARE EKLEMESİ ---
+# Bu middleware, uygulamanın bir proxy (örn: Hugging Face'in yük dengeleyicisi) 
+# arkasında çalıştığını anlamasını ve X-Forwarded-* başlıklarına güvenmesini sağlar.
+# Bu, statik dosyalar için https:// URL'leri oluşturulmasını sağlayarak Mixed Content hatasını çözer.
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+# --- YENİ MİDDLEWARE SONU ---
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
