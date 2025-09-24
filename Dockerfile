@@ -1,5 +1,5 @@
 # ======================================================================================
-#    SENTIRIC PYTHON SERVICE - STANDART DOCKERFILE v2.1 (Universal Cache)
+#    SENTIRIC PYTHON SERVICE - STANDART DOCKERFILE v2.2 (Final Permissions Fix)
 # ======================================================================================
 ARG PYTHON_VERSION=3.11
 ARG BASE_IMAGE_TAG=${PYTHON_VERSION}-slim-bullseye
@@ -31,11 +31,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN addgroup --system --gid 1001 appgroup && \
     adduser --system --no-create-home --uid 1001 --ingroup appgroup appuser
 COPY --from=builder --chown=appuser:appgroup /app/.venv ./.venv
-COPY --from=builder --chown=appuser:appgroup /app/data /app/data
+COPY --from=builder /app/data /app/data
 COPY --chown=appuser:appgroup ./app ./app
 COPY --chown=appuser:appgroup ./app/static ./app/static
 COPY --chown=appuser:appgroup ./app/templates ./app/templates
-RUN chown -R appuser:appgroup /app/data
+# --- NİHAİ DÜZELTME BURADA ---
+# /app dizininin tamamının ve alt dizinlerinin sahipliğini appuser'a veriyoruz.
+RUN chown -R appuser:appgroup /app
+# --- NİHAİ DÜZELTME SONU ---
 USER appuser
 EXPOSE 7860
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "15010", "--no-access-log"]
