@@ -86,12 +86,11 @@ Canlı bir telefon görüşmesi, bir web arayüzündeki mikrofon girişi veya `m
 
 ---
 
-## 🚀 Yerel Geliştirme ve Test
+## 🚀 Yerel Geliştirme
 
-1.  **Sanal Ortam Oluşturun:** `python -m venv .venv && source .venv/bin/activate`
-2.  **Bağımlılıkları Kurun:** `pip install -e ".[dev]"`
-3.  **Servisi Başlatın:** `uvicorn app.main:app --reload --port 5001`
-4.  **İnteraktif Test Paneline Erişin:** Tarayıcınızda `http://localhost:5001` adresini açın. Bu panel, yukarıda açıklanan her iki senaryoyu da test etmenize ve filtre ayarlarıyla canlı olarak oynamanıza olanak tanır.
+1.  **Bağımlılıkları Yükleyin:**
+2.  **Ortam Değişkenlerini Ayarlayın:** `.env.example` dosyasını `.env` olarak kopyalayın ve gerekli değişkenleri doldurun.
+3.  **Servisi Çalıştırın:**
 
 ---
 ## 🏛️ Anayasal Konum
