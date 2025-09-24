@@ -2,10 +2,7 @@
 import logging
 import sys
 import structlog
-# DEĞİŞİKLİK: Artık config'i import etmiyoruz.
-# from app.core.config import settings 
 
-# DEĞİŞİKLİK: Fonksiyon artık parametre alıyor.
 def setup_logging(log_level: str, env: str):
     log_level = log_level.upper()
 
@@ -37,9 +34,17 @@ def setup_logging(log_level: str, env: str):
     
     root_logger = logging.getLogger()
     root_logger.handlers = [handler]
-    root_logger.setLevel(log_level) # DEĞİŞİKLİK: Seviyeyi doğrudan parametreden al.
+    root_logger.setLevel(log_level)
 
-    for logger_name in ["uvicorn", "uvicorn.error", "uvicorn.access"]:
-        uvicorn_logger = logging.getLogger(logger_name)
-        uvicorn_logger.handlers = [] 
-        uvicorn_logger.propagate = True
+    # --- YENİ BÖLÜM: Gürültülü Bağımlılıkların Log Seviyesini Ayarlama ---
+    # Bu döngü, belirtilen kütüphanelerin log seviyesini 'WARNING'e yükselterek
+    # onların gereksiz INFO ve DEBUG loglarını bastırır.
+    # Sadece kendi servisimizin log seviyesi ne olursa olsun, bu kütüphaneler
+    # sadece önemli (uyarı ve hata) durumları loglayacaktır.
+    noisy_libraries = ["faster_whisper", "huggingface_hub", "uvicorn.access"]
+    for lib_name in noisy_libraries:
+        logging.getLogger(lib_name).setLevel(logging.WARNING)
+    # --- YENİ BÖLÜM SONU ---
+    
+    # uvicorn.error loglarını korumak için onu bu listeden ayırıyoruz.
+    logging.getLogger("uvicorn.error").setLevel(logging.getLevelName(log_level))

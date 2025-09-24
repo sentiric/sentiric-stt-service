@@ -40,10 +40,22 @@
                         <label for="audio-file">Ses Dosyası Seçin (.wav, .mp3, .ogg, vb.)</label>
                         <input type="file" id="audio-file" name="audio_file" accept="audio/*" required>
                     </div>
+                    <!-- --- DEĞİŞİKLİK BURADA --- -->
                     <div class="form-group">
-                        <label for="language-file">Dil (İsteğe Bağlı, boş bırakırsanız otomatik algılar)</label>
-                        <input type="text" id="language-file" name="language" placeholder="örn: tr, en">
+                        <label for="language-file">Dil (Boş bırakırsanız otomatik algılar)</label>
+                        <select id="language-file" name="language">
+                            <option value="">Otomatik Algıla</option>
+                            <option value="tr">Türkçe (tr)</option>
+                            <option value="en">İngilizce (en)</option>
+                            <option value="de">Almanca (de)</option>
+                            <option value="es">İspanyolca (es)</option>
+                            <option value="fr">Fransızca (fr)</option>
+                            <option value="ru">Rusça (ru)</option>
+                            <option value="ar">Arapça (ar)</option>
+                            <option value="zh">Çince (zh)</option>
+                        </select>
                     </div>
+                    <!-- --- DEĞİŞİKLİK SONU --- -->
                     <button type="submit" id="submit-btn">Metne Çevir</button>
                 </form>
                 <div id="file-result-container" class="result-container hidden">
@@ -56,10 +68,22 @@
 
             <!-- Gerçek Zamanlı Sekmesi -->
             <div id="real-time" class="tab-content">
+                 <!-- --- DEĞİŞİKLİK BURADA --- -->
                 <div class="form-group">
-                    <label for="language-stream">Dil (İsteğe Bağlı)</label>
-                    <input type="text" id="language-stream" placeholder="örn: tr, en">
+                    <label for="language-stream">Dil (Boş bırakırsanız otomatik algılar)</label>
+                    <select id="language-stream" name="language">
+                        <option value="">Otomatik Algıla</option>
+                        <option value="tr" selected>Türkçe (tr)</option>
+                        <option value="en">İngilizce (en)</option>
+                        <option value="de">Almanca (de)</option>
+                        <option value="es">İspanyolca (es)</option>
+                        <option value="fr">Fransızca (fr)</option>
+                        <option value="ru">Rusça (ru)</option>
+                        <option value="ar">Arapça (ar)</option>
+                        <option value="zh">Çince (zh)</option>
+                    </select>
                 </div>
+                <!-- --- DEĞİŞİKLİK SONU --- -->
                 <div class="real-time-controls">
                     <button id="record-btn">🎤 Kaydı Başlat</button>
                     <p id="status-text">Durum: Beklemede</p>
