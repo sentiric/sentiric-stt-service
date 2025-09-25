@@ -1,4 +1,4 @@
-# ========== DOSYA: sentiric-stt-service/app/services/adapters/faster_whisper_adapter.py (TAM VE GÜNCEL İÇERİK) ==========
+# ========== DOSYA: sentiric-stt-service/app/services/adapters/faster_whisper_adapter.py (TAM VE GÜNCELLENMİŞ İÇERİK) ==========
 from faster_whisper import WhisperModel
 from app.core.config import settings
 import structlog
@@ -57,29 +57,18 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         final_logprob_threshold = logprob_threshold if logprob_threshold is not None else settings.STT_SERVICE_LOGPROB_THRESHOLD
         final_no_speech_threshold = no_speech_threshold if no_speech_threshold is not None else settings.STT_SERVICE_NO_SPEECH_THRESHOLD
         
-        # --- DÜZELTME BURADA BAŞLIYOR ---
-        # Varsayılan VAD parametrelerini belirliyoruz
-        final_vad_parameters = {"min_silence_duration_ms": 700}
+        # --- DEĞİŞİKLİK BURADA: VAD parametrelerini dinamik olarak al ---
+        # Önce config'den gelen varsayılanları alıyoruz.
+        final_vad_parameters = {
+            "min_silence_duration_ms": settings.STT_SERVICE_VAD_MIN_SILENCE_MS
+        }
         
-        # Eğer dışarıdan `vad_parameters` gelirse, içindeki 'aggressiveness' değerini işliyoruz.
+        # Eğer API isteğinden özel bir parametre gelirse, onu kullanıyoruz.
         if vad_parameters:
-            aggressiveness = vad_parameters.get("aggressiveness")
-            try:
-                # Gelen değeri integer'a çevirmeye çalışıyoruz.
-                aggressiveness_level = int(aggressiveness) if aggressiveness is not None else 1
-                if aggressiveness_level == 0:
-                    final_vad_parameters["min_silence_duration_ms"] = 1500
-                elif aggressiveness_level == 1:
-                    final_vad_parameters["min_silence_duration_ms"] = 700
-                elif aggressiveness_level == 2:
-                    final_vad_parameters["min_silence_duration_ms"] = 400
-                elif aggressiveness_level >= 3:
-                    final_vad_parameters["min_silence_duration_ms"] = 250
-            except (ValueError, TypeError):
-                # Eğer çevirme başarısız olursa, varsayılanı kullan.
-                log.warn("Geçersiz 'aggressiveness' değeri alındı, varsayılan kullanılıyor.", received_value=aggressiveness)
-                pass # final_vad_parameters'ın varsayılan değeri kalır
-        # --- DÜZELTME SONA ERİYOR ---
+            # `streaming_service` artık bize doğrudan "min_silence_duration_ms" gönderebilir.
+            if "min_silence_duration_ms" in vad_parameters:
+                 final_vad_parameters["min_silence_duration_ms"] = vad_parameters["min_silence_duration_ms"]
+        # --- DEĞİŞİKLİK SONU ---
         
         log.debug(
             "Applying transcription thresholds",
