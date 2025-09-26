@@ -1,4 +1,4 @@
-# ========== DOSYA: sentiric-stt-service/app/services/adapters/faster_whisper_adapter.py (TAM VE GÜNCELLENMİŞ İÇERİK) ==========
+# sentiric-stt-service/app/services/adapters/faster_whisper_adapter.py
 from faster_whisper import WhisperModel
 from app.core.config import settings
 import structlog
@@ -63,18 +63,18 @@ class FasterWhisperAdapter(BaseSTTAdapter):
             "min_silence_duration_ms": settings.STT_SERVICE_VAD_MIN_SILENCE_MS
         }
         
-        # Eğer API isteğinden özel bir parametre gelirse, onu kullanıyoruz.
+        # Eğer API isteğinden özel bir parametre gelirse (örn: streaming_service'den gelen aggressiveness),
+        # onu varsayılanların üzerine yazıyoruz.
         if vad_parameters:
-            # `streaming_service` artık bize doğrudan "min_silence_duration_ms" gönderebilir.
-            if "min_silence_duration_ms" in vad_parameters:
-                 final_vad_parameters["min_silence_duration_ms"] = vad_parameters["min_silence_duration_ms"]
+            final_vad_parameters.update(vad_parameters)
         # --- DEĞİŞİKLİK SONU ---
         
         log.debug(
             "Applying transcription thresholds",
             logprob_threshold=final_logprob_threshold,
             no_speech_threshold=final_no_speech_threshold,
-            vad_parameters=final_vad_parameters
+            vad_parameters=final_vad_parameters,
+            vad_filter_enabled=vad_filter
         )
         
         segments, info = self.model.transcribe(

@@ -1,4 +1,4 @@
-# ========== DOSYA: sentiric-stt-service/app/core/config.py (TAM VE GÜNCELLENMİŞ İÇERİK) ==========
+# sentiric-stt-service/app/core/config.py
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     STT_SERVICE_NO_SPEECH_THRESHOLD: float = Field(0.75, validation_alias="STT_SERVICE_NO_SPEECH_THRESHOLD")
     
     # --- YENİ VAD AYARI ---
+    # Modelin bir konuşma segmentini sonlandırmadan önce beklemesi gereken minimum sessizlik süresi (milisaniye).
+    # Telefon görüşmelerindeki doğal duraksamalar için bu değeri artırmak faydalıdır.
     STT_SERVICE_VAD_MIN_SILENCE_MS: int = Field(1000, validation_alias="STT_SERVICE_VAD_MIN_SILENCE_MS")
     # --- YENİ AYAR SONU ---
     

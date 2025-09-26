@@ -1,4 +1,4 @@
-# sentiric-stt-service\app\services\streaming_service.py
+# sentiric-stt-service/app/services/streaming_service.py
 import asyncio
 import time
 import numpy as np
@@ -34,15 +34,23 @@ class AudioProcessor:
         try:
             audio_np = np.frombuffer(audio_chunk, dtype=np.int16).astype(np.float32) / 32767.0
             
+            # --- DEĞİŞİKLİK BURADA: VAD parametresini adaptöre geçiriyoruz ---
+            vad_params = None
+            if self.vad_aggressiveness is not None:
+                # `webrtcvad` 0-3 arası bir değer bekler.
+                # `faster-whisper` bunu doğrudan `webrtcvad`'e iletir.
+                vad_params = {"aggressiveness": self.vad_aggressiveness}
+
             text = self.adapter.transcribe(
                 audio_np, 
                 self.language,
                 logprob_threshold=self.logprob_threshold,
                 no_speech_threshold=self.no_speech_threshold,
-                vad_filter=True,
-                # YENİ: VAD parametresini adaptöre geçir
-                vad_parameters={"aggressiveness": self.vad_aggressiveness} if self.vad_aggressiveness is not None else None
+                vad_filter=True, # Gerçek zamanlı akışta VAD her zaman aktif olmalı
+                vad_parameters=vad_params
             )
+            # --- DEĞİŞİKLİK SONU ---
+
             if text:
                 log.debug("Chunk transcription successful", text=text)
                 return {"type": "final", "text": text}
@@ -75,10 +83,8 @@ class AudioProcessor:
             except asyncio.TimeoutError:
                 if time.time() - self.last_audio_time > self.no_speech_timeout_seconds:
                     log.warn(f"{self.no_speech_timeout_seconds} saniyedir ses algılanmadı. Timeout olayı gönderiliyor.")
-                    # --- DEĞİŞİKLİK BURADA ---
                     yield {"type": "no_speech_timeout", "message": "No speech detected."}
-                    # Zamanı sıfırla ki sürekli timeout göndermesin
-                    self.last_audio_time = time.time() 
+                    self.last_audio_time = time.time()
             
             except StopAsyncIteration:
                 log.info("Audio stream ended normally.")

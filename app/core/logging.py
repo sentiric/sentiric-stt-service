@@ -41,7 +41,7 @@ def setup_logging(log_level: str, env: str):
     # onların gereksiz INFO ve DEBUG loglarını bastırır.
     # Sadece kendi servisimizin log seviyesi ne olursa olsun, bu kütüphaneler
     # sadece önemli (uyarı ve hata) durumları loglayacaktır.
-    noisy_libraries = ["faster_whisper", "huggingface_hub", "uvicorn.access"]
+    noisy_libraries = ["faster_whisper", "huggingface_hub", "uvicorn.access", "websockets"]
     for lib_name in noisy_libraries:
         logging.getLogger(lib_name).setLevel(logging.WARNING)
     # --- YENİ BÖLÜM SONU ---
