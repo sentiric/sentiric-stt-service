@@ -2,6 +2,7 @@
 import uuid
 import asyncio
 from contextlib import asynccontextmanager
+import logging # <- YENİ IMPORT
 
 import structlog
 from fastapi import FastAPI, Request, Response
@@ -9,9 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from prometheus_fastapi_instrumentator import Instrumentator
 from structlog.contextvars import bind_contextvars, clear_contextvars
-# --- YENİ IMPORT ---
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-# --- YENİ IMPORT SONU ---
 
 from app.api.v1.endpoints import router as api_v1_router
 from app.core.config import settings
@@ -20,8 +19,22 @@ from app.services import stt_service
 
 SERVICE_NAME = "stt-service"
 
+# ==================== YENİ BÖLÜM: Gürültülü Logları Susturma ====================
+# Bu fonksiyon, FastAPI/Uvicorn başlatılmadan önce çağrılacak ve
+# istenmeyen kütüphanelerin log seviyelerini yükseltecektir.
+def silence_noisy_loggers():
+    noisy_libraries = ["websockets.server", "websockets.protocol", "uvicorn.access"]
+    for lib_name in noisy_libraries:
+        logging.getLogger(lib_name).setLevel(logging.WARNING)
+# ==================== BÖLÜM SONU ====================
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Loglamayı bizim structlog yapılandırmamızla kurmadan HEMEN ÖNCE
+    # gürültülü logları susturuyoruz.
+    silence_noisy_loggers()
+    
     setup_logging(log_level=settings.LOG_LEVEL, env=settings.ENV)
     log = structlog.get_logger().bind(service=SERVICE_NAME)
     
@@ -45,12 +58,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.SERVICE_VERSION, lifespan=lifespan)
 log = structlog.get_logger(__name__)
 
-# --- YENİ MİDDLEWARE EKLEMESİ ---
-# Bu middleware, uygulamanın bir proxy (örn: Hugging Face'in yük dengeleyicisi) 
-# arkasında çalıştığını anlamasını ve X-Forwarded-* başlıklarına güvenmesini sağlar.
-# Bu, statik dosyalar için https:// URL'leri oluşturulmasını sağlayarak Mixed Content hatasını çözer.
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
-# --- YENİ MİDDLEWARE SONU ---
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
@@ -59,12 +67,14 @@ templates = Jinja2Templates(directory="app/templates")
 async def logging_middleware(request: Request, call_next) -> Response:
     clear_contextvars()
     
+    # Health check loglarını atlıyoruz, çünkü çok sık çağrılırlar.
     if request.url.path in ["/health", "/healthz", "/metrics"]:
         return await call_next(request)
 
     trace_id = request.headers.get("X-Trace-ID") or f"stt-trace-{uuid.uuid4()}"
     bind_contextvars(trace_id=trace_id)
     
+    # Sadece kendi loglarımızı tutuyoruz
     log.info("İstek alındı", http_method=request.method, http_path=request.url.path)
     response = await call_next(request)
     log.info("İstek tamamlandı", http_status_code=response.status_code)
