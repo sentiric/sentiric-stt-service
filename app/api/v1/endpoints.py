@@ -73,13 +73,13 @@ async def create_transcription(
         log.error("Transkripsiyon sırasında beklenmedik bir hata oluştu.", error=str(e), exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An error occurred while processing the audio file.")
 
+# --- DEĞİŞİKLİK BURADA ---
 @router.websocket("/transcribe-stream")
 async def websocket_transcription(
     websocket: WebSocket, 
     language: Optional[str] = None,
     logprob_threshold: Optional[float] = None,
-    no_speech_threshold: Optional[float] = None,
-    vad_aggressiveness: Optional[int] = None
+    no_speech_threshold: Optional[float] = None
 ):
     """
     Gerçek zamanlı ses akışını WebSocket üzerinden metne çevirir.
@@ -88,18 +88,19 @@ async def websocket_transcription(
     client_info = f"{websocket.client.host}:{websocket.client.port}"
     normalized_language = language.lower() if language and language.strip() else None
     
-    log.info("WebSocket bağlantısı kuruldu.", client=client_info, language=normalized_language or "auto")
+    log.info("WebSocket connection established.", client=client_info, language=normalized_language or "auto")
     
     adapter = get_adapter(websocket)
     if not adapter:
-        log.warn("WebSocket bağlantısı reddedildi çünkü model hazır değil.", client=client_info)
+        log.warn("WebSocket connection rejected: model not ready.", client=client_info)
         await websocket.close(code=status.WS_1013_TRY_AGAIN_LATER, reason="Model is not ready, please try again in a moment.")
         return
         
+    # AudioProcessor'ı çağırırken artık URL'den gelen parametreleri vermiyoruz.
+    # Bu ayarlar artık config'den okunuyor.
     audio_processor = AudioProcessor(
         adapter=adapter, 
         language=normalized_language,
-        vad_aggressiveness=vad_aggressiveness,
         logprob_threshold=logprob_threshold,
         no_speech_threshold=no_speech_threshold
     )
@@ -110,7 +111,7 @@ async def websocket_transcription(
                 data = await websocket.receive_bytes()
                 yield data
         except WebSocketDisconnect:
-            log.info("WebSocket istemcisi bağlantıyı kapattı.", client=client_info)
+            log.info("WebSocket client disconnected.", client=client_info)
     
     transcribe_task = None
     try:
@@ -119,24 +120,23 @@ async def websocket_transcription(
                 try:
                     await websocket.send_json(result)
                 except (WebSocketDisconnect, ClientDisconnected, RuntimeError):
-                    log.warn("Kapalı bir WebSocket'e gönderim yapılamadı. İstemci muhtemelen ayrıldı.", client=client_info)
+                    log.warn("Could not send to a closed WebSocket. Client likely disconnected.", client=client_info)
                     break 
 
         transcribe_task = asyncio.create_task(transcribe_loop())
         await transcribe_task
 
     except asyncio.CancelledError:
-        log.info("Transkripsiyon görevi iptal edildi.", client=client_info)
+        log.info("Transcription task was cancelled.", client=client_info)
     except Exception as e:
-        log.error("WebSocket ana işleyicisinde beklenmedik hata.", client=client_info, error=str(e), exc_info=True)
+        log.error("Unexpected error in WebSocket handler.", client=client_info, error=str(e), exc_info=True)
     finally:
         if transcribe_task and not transcribe_task.done():
             transcribe_task.cancel()
         
         if websocket.client_state.name == "CONNECTED":
             try:
-                # İstemciye normal bir kapanış mesajı gönder
                 await websocket.close(code=status.WS_1000_NORMAL_CLOSURE)
             except (WebSocketDisconnect, ClientDisconnected, RuntimeError):
-                pass # Zaten kapalıysa sorun değil
-        log.info("WebSocket bağlantı kaynakları temizlendi.", client=client_info)
+                pass
+        log.info("WebSocket connection resources cleaned up.", client=client_info)
