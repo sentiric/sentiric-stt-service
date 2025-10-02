@@ -37,10 +37,7 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         audio_input: Union[bytes, np.ndarray], 
         language: Optional[str] = None,
         logprob_threshold: Optional[float] = None,
-        no_speech_threshold: Optional[float] = None,
-        # Bu parametreleri artık dışarıdan almıyoruz, sadece uyumluluk için duruyorlar.
-        vad_filter: bool = False,
-        vad_parameters: Optional[dict] = None
+        no_speech_threshold: Optional[float] = None
     ) -> str:
         if not self.model_loaded or self.model is None:
             log.error("Transcription requested but model is not available.")
@@ -58,11 +55,6 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         final_logprob_threshold = logprob_threshold if logprob_threshold is not None else settings.STT_SERVICE_LOGPROB_THRESHOLD
         final_no_speech_threshold = no_speech_threshold if no_speech_threshold is not None else settings.STT_SERVICE_NO_SPEECH_THRESHOLD
         
-        # --- DEĞİŞİKLİK BURADA ---
-        # Artık VAD işlemini streaming_service'de yaptığımız için,
-        # faster-whisper'ın kendi VAD filtresini çağırmamıza gerek yok.
-        # Bu, hem kodu basitleştirir hem de hatayı düzeltir.
-        
         log.debug(
             "Applying transcription filters",
             logprob_threshold=final_logprob_threshold,
@@ -73,7 +65,6 @@ class FasterWhisperAdapter(BaseSTTAdapter):
             input_for_model, 
             beam_size=5, 
             language=effective_language
-            # vad_filter ve vad_parameters parametreleri kaldırıldı.
         )
         
         log.debug(
@@ -83,6 +74,7 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         )
 
         filtered_segments = []
+        rejected_texts = [] # Reddedilenleri loglamak için bir liste
         for segment in segments:
             is_reliable = (
                 segment.avg_logprob > final_logprob_threshold and 
@@ -91,22 +83,20 @@ class FasterWhisperAdapter(BaseSTTAdapter):
             
             if is_reliable:
                 filtered_segments.append(segment.text)
-                log.debug(
-                    "Segment kept.", 
-                    text=segment.text.strip(),
-                    avg_logprob=round(segment.avg_logprob, 2),
-                    no_speech_prob=round(segment.no_speech_prob, 2)
-                )
             else:
-                log.warn(
-                    "Segment REJECTED due to low confidence.",
-                    text=segment.text.strip(),
-                    avg_logprob=round(segment.avg_logprob, 2),
-                    no_speech_prob=round(segment.no_speech_prob, 2),
-                    logprob_threshold=final_logprob_threshold,
-                    no_speech_threshold=final_no_speech_threshold
-                )
+                rejected_texts.append(segment.text.strip())
 
+        # Eğer herhangi bir segment reddedildiyse, bunu tek bir logda toplayalım
+        if rejected_texts:
+            log.warn(
+                "Segments REJECTED due to low confidence.",
+                rejected_count=len(rejected_texts),
+                rejected_texts=rejected_texts,
+                logprob_threshold=final_logprob_threshold,
+                no_speech_threshold=final_no_speech_threshold
+            )
+        
+        # Sadece kabul edilen segmentleri birleştir
         full_text = "".join(filtered_segments).strip()
         
         return full_text
