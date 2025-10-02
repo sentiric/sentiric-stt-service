@@ -1,4 +1,3 @@
-# sentiric-stt-service/app/services/adapters/faster_whisper_adapter.py
 from faster_whisper import WhisperModel
 from app.core.config import settings
 import structlog
@@ -39,6 +38,7 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         language: Optional[str] = None,
         logprob_threshold: Optional[float] = None,
         no_speech_threshold: Optional[float] = None,
+        # Bu parametreleri artık dışarıdan almıyoruz, sadece uyumluluk için duruyorlar.
         vad_filter: bool = False,
         vad_parameters: Optional[dict] = None
     ) -> str:
@@ -58,31 +58,24 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         final_logprob_threshold = logprob_threshold if logprob_threshold is not None else settings.STT_SERVICE_LOGPROB_THRESHOLD
         final_no_speech_threshold = no_speech_threshold if no_speech_threshold is not None else settings.STT_SERVICE_NO_SPEECH_THRESHOLD
         
-        final_vad_parameters = {
-            "min_silence_duration_ms": settings.STT_SERVICE_VAD_MIN_SILENCE_MS
-        }
+        # --- DEĞİŞİKLİK BURADA ---
+        # Artık VAD işlemini streaming_service'de yaptığımız için,
+        # faster-whisper'ın kendi VAD filtresini çağırmamıza gerek yok.
+        # Bu, hem kodu basitleştirir hem de hatayı düzeltir.
         
-        if vad_parameters:
-            final_vad_parameters.update(vad_parameters)
-        
-        # Bu log INFO için çok detaylı, DEBUG seviyesine çekiyoruz.
         log.debug(
-            "Applying transcription thresholds",
+            "Applying transcription filters",
             logprob_threshold=final_logprob_threshold,
-            no_speech_threshold=final_no_speech_threshold,
-            vad_parameters=final_vad_parameters,
-            vad_filter_enabled=vad_filter
+            no_speech_threshold=final_no_speech_threshold
         )
         
         segments, info = self.model.transcribe(
             input_for_model, 
             beam_size=5, 
-            language=effective_language,
-            vad_filter=vad_filter,
-            vad_parameters=final_vad_parameters,
+            language=effective_language
+            # vad_filter ve vad_parameters parametreleri kaldırıldı.
         )
         
-        # Bu log da INFO için çok detaylı, DEBUG seviyesine çekiyoruz.
         log.debug(
             "Transcription by model completed",
             detected_language=info.language,
@@ -98,7 +91,6 @@ class FasterWhisperAdapter(BaseSTTAdapter):
             
             if is_reliable:
                 filtered_segments.append(segment.text)
-                # Başarılı bir segmentin loglanması da DEBUG için daha uygun.
                 log.debug(
                     "Segment kept.", 
                     text=segment.text.strip(),
@@ -106,7 +98,6 @@ class FasterWhisperAdapter(BaseSTTAdapter):
                     no_speech_prob=round(segment.no_speech_prob, 2)
                 )
             else:
-                # Bir segmentin reddedilmesi önemli bir olay, bu yüzden WARN olarak kalmalı.
                 log.warn(
                     "Segment REJECTED due to low confidence.",
                     text=segment.text.strip(),
