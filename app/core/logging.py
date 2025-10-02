@@ -4,6 +4,11 @@ import sys
 import structlog
 
 def setup_logging(log_level: str, env: str):
+    """
+    Uygulama genelinde yapısal loglamayı (structlog) ayarlar.
+    Gürültücü kütüphanelerin log seviyelerini yükselterek ana uygulama
+    loglarının okunabilirliğini artırır.
+    """
     log_level = log_level.upper()
 
     shared_processors = [
@@ -16,10 +21,12 @@ def setup_logging(log_level: str, env: str):
         structlog.processors.UnicodeDecoder(),
     ]
 
+    # Geliştirme ortamında daha okunaklı, renkli loglar kullan
     if env == "development":
         processors = shared_processors + [
             structlog.dev.ConsoleRenderer(colors=True)
         ]
+    # Üretim ortamında JSON formatında log bas
     else:
         processors = shared_processors + [structlog.processors.JSONRenderer()]
 
@@ -30,21 +37,28 @@ def setup_logging(log_level: str, env: str):
         cache_logger_on_first_use=True,
     )
 
+    # structlog'u standart logging ile entegre et
     handler = logging.StreamHandler(sys.stdout)
     
     root_logger = logging.getLogger()
+    # Mevcut handler'ları temizleyip sadece bizimkini ekliyoruz
     root_logger.handlers = [handler]
     root_logger.setLevel(log_level)
 
-    # --- YENİ BÖLÜM: Gürültülü Bağımlılıkların Log Seviyesini Ayarlama ---
-    # Bu döngü, belirtilen kütüphanelerin log seviyesini 'WARNING'e yükselterek
-    # onların gereksiz INFO ve DEBUG loglarını bastırır.
-    # Sadece kendi servisimizin log seviyesi ne olursa olsun, bu kütüphaneler
-    # sadece önemli (uyarı ve hata) durumları loglayacaktır.
-    noisy_libraries = ["faster_whisper", "huggingface_hub", "uvicorn.access", "websockets"]
+    # Gürültücü kütüphanelerin log seviyesini WARNING'e çekerek
+    # DEBUG ve INFO seviyesindeki spam'lerini engelle
+    noisy_libraries = [
+        "faster_whisper", 
+        "huggingface_hub", 
+        "uvicorn",
+        "uvicorn.error",
+        "uvicorn.access", 
+        "websockets"
+    ]
     for lib_name in noisy_libraries:
         logging.getLogger(lib_name).setLevel(logging.WARNING)
-    # --- YENİ BÖLÜM SONU ---
     
-    # uvicorn.error loglarını korumak için onu bu listeden ayırıyoruz.
-    logging.getLogger("uvicorn.error").setLevel(logging.getLevelName(log_level))
+    # Sadece kendi uygulama loglarımızın belirlenen seviyede akmasını sağla
+    # Bu, root logger'ın seviyesini korurken kütüphaneleri susturur.
+    log = structlog.get_logger()
+    log.info("Logging configured", log_level=log_level, env=env)

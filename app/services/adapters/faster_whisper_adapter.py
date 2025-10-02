@@ -43,6 +43,7 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         vad_parameters: Optional[dict] = None
     ) -> str:
         if not self.model_loaded or self.model is None:
+            log.error("Transcription requested but model is not available.")
             raise RuntimeError("Model is not available for transcription.")
             
         effective_language = language if language else None
@@ -57,18 +58,14 @@ class FasterWhisperAdapter(BaseSTTAdapter):
         final_logprob_threshold = logprob_threshold if logprob_threshold is not None else settings.STT_SERVICE_LOGPROB_THRESHOLD
         final_no_speech_threshold = no_speech_threshold if no_speech_threshold is not None else settings.STT_SERVICE_NO_SPEECH_THRESHOLD
         
-        # --- DEĞİŞİKLİK BURADA: VAD parametrelerini dinamik olarak al ---
-        # Önce config'den gelen varsayılanları alıyoruz.
         final_vad_parameters = {
             "min_silence_duration_ms": settings.STT_SERVICE_VAD_MIN_SILENCE_MS
         }
         
-        # Eğer API isteğinden özel bir parametre gelirse (örn: streaming_service'den gelen aggressiveness),
-        # onu varsayılanların üzerine yazıyoruz.
         if vad_parameters:
             final_vad_parameters.update(vad_parameters)
-        # --- DEĞİŞİKLİK SONU ---
         
+        # Bu log INFO için çok detaylı, DEBUG seviyesine çekiyoruz.
         log.debug(
             "Applying transcription thresholds",
             logprob_threshold=final_logprob_threshold,
@@ -85,6 +82,7 @@ class FasterWhisperAdapter(BaseSTTAdapter):
             vad_parameters=final_vad_parameters,
         )
         
+        # Bu log da INFO için çok detaylı, DEBUG seviyesine çekiyoruz.
         log.debug(
             "Transcription by model completed",
             detected_language=info.language,
@@ -100,16 +98,18 @@ class FasterWhisperAdapter(BaseSTTAdapter):
             
             if is_reliable:
                 filtered_segments.append(segment.text)
+                # Başarılı bir segmentin loglanması da DEBUG için daha uygun.
                 log.debug(
                     "Segment kept.", 
-                    text=segment.text,
+                    text=segment.text.strip(),
                     avg_logprob=round(segment.avg_logprob, 2),
                     no_speech_prob=round(segment.no_speech_prob, 2)
                 )
             else:
+                # Bir segmentin reddedilmesi önemli bir olay, bu yüzden WARN olarak kalmalı.
                 log.warn(
                     "Segment REJECTED due to low confidence.",
-                    text=segment.text,
+                    text=segment.text.strip(),
                     avg_logprob=round(segment.avg_logprob, 2),
                     no_speech_prob=round(segment.no_speech_prob, 2),
                     logprob_threshold=final_logprob_threshold,
